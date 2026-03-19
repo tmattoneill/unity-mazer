@@ -32,4 +32,4 @@ crashlytics-build.properties
 .DS_Store
 Thumbs.db
 .devctx/
-UnityMazer.app/
+*.app/

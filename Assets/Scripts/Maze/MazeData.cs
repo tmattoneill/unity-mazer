@@ -24,8 +24,10 @@ namespace MazeSolver
         public List<Vector2Int> OwnPath;
         public Vector2Int Position;
         public AgentStatus Status;
+        public int SpawnStep;
+        public int DeathStep; // -1 if still alive
 
-        public AgentData(int id, int parentId, Vector2Int start, List<Vector2Int> inheritedPath)
+        public AgentData(int id, int parentId, Vector2Int start, List<Vector2Int> inheritedPath, int spawnStep)
         {
             Id = id;
             ParentId = parentId;
@@ -33,6 +35,8 @@ namespace MazeSolver
             FullPath = new List<Vector2Int>(inheritedPath) { start };
             OwnPath = new List<Vector2Int> { start };
             Status = AgentStatus.Active;
+            SpawnStep = spawnStep;
+            DeathStep = -1;
         }
     }
 }

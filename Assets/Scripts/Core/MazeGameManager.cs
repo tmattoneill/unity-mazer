@@ -9,6 +9,9 @@ namespace MazeSolver
         public MazeRenderer mazeRenderer;
         public MazeUIController uiController;
         public MazeAudioEngine audioEngine;
+        public SolveTreeRenderer solveTreeRenderer;
+
+        public MazeAudioEngine AudioEngine => audioEngine;
 
         MazeSolverEngine solver;
         byte[,] currentGrid;
@@ -56,6 +59,9 @@ namespace MazeSolver
 
             audioEngine.StartDrone();
 
+            if (solveTreeRenderer)
+                solveTreeRenderer.Initialize(512, 512);
+
             uiController.SetStatus("Solving...");
             isSolving = true;
             solveCoroutine = StartCoroutine(SolveCoroutine());
@@ -78,8 +84,13 @@ namespace MazeSolver
                     float explorationRatio = (float)solver.Visited.Count / totalCells;
                     audioEngine.UpdateIntensity(solver.ActiveCount, explorationRatio);
 
+                    // Update solve tree
+                    if (solveTreeRenderer)
+                        solveTreeRenderer.RenderTree(solver);
+
                     // Update UI
                     uiController.SetAgentCount(solver.ActiveCount, solver.DeadCount, solver.TotalSpawned);
+                    uiController.UpdateVitals(solver, uiController.SpeedMs);
 
                     if (solver.IsSolved)
                     {
@@ -127,6 +138,7 @@ namespace MazeSolver
 
             mazeRenderer.Clear();
             audioEngine.StopAll();
+            if (solveTreeRenderer) solveTreeRenderer.Clear();
 
             uiController.SetStatus("Ready");
             uiController.SetSolving(false);

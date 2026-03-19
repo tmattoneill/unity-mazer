@@ -114,31 +114,180 @@ namespace MazeSolver.Editor
             var speedSlider = CreateSlider(layoutGO.transform);
             uiController.speedSlider = speedSlider;
 
-            CreateSpacer(layoutGO.transform, 4);
+            CreateSpacer(layoutGO.transform, 2);
 
             // Generate & Solve button
             var genBtn = CreateButton("Generate & Solve", layoutGO.transform, new Color(0.1f, 0.6f, 0.3f));
             uiController.generateButton = genBtn;
 
-            // Pause button
+            // Pause / Reset row
             var pauseBtn = CreateButton("Pause", layoutGO.transform, new Color(0.6f, 0.5f, 0.1f));
             uiController.pauseButton = pauseBtn;
             uiController.pauseButtonText = pauseBtn.GetComponentInChildren<Text>();
 
-            // Reset button
             var resetBtn = CreateButton("Reset", layoutGO.transform, new Color(0.6f, 0.15f, 0.15f));
             uiController.resetButton = resetBtn;
 
-            CreateSpacer(layoutGO.transform, 8);
+            CreateSpacer(layoutGO.transform, 2);
+
+            // --- Audio Settings ---
+            var audioTitle = CreateText("Audio", layoutGO.transform, 13, TextAnchor.MiddleCenter, new Color(0.7f, 0.7f, 0.8f));
+            audioTitle.GetComponent<LayoutElement>().preferredHeight = 18;
+
+            // Drone mode toggle button
+            var droneModeBtn = CreateButton("Mono", layoutGO.transform, new Color(0.25f, 0.3f, 0.45f));
+            uiController.droneModeButton = droneModeBtn;
+            uiController.droneModeText = droneModeBtn.GetComponentInChildren<Text>();
+
+            // Track selector button
+            var trackBtn = CreateButton("Select Track", layoutGO.transform, new Color(0.2f, 0.25f, 0.4f));
+            uiController.trackButton = trackBtn;
+            uiController.trackButtonText = trackBtn.GetComponentInChildren<Text>();
+
+            // Pitch slider
+            var pitchLbl = CreateText("Pitch: 0 st", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
+            pitchLbl.GetComponent<LayoutElement>().preferredHeight = 14;
+            uiController.pitchLabel = pitchLbl.GetComponent<Text>();
+            var pitchSld = CreateSlider(layoutGO.transform);
+            uiController.pitchSlider = pitchSld;
+
+            // Volume slider
+            var volLbl = CreateText("Volume: 50%", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
+            volLbl.GetComponent<LayoutElement>().preferredHeight = 14;
+            uiController.volumeLabel = volLbl.GetComponent<Text>();
+            var volSld = CreateSlider(layoutGO.transform);
+            uiController.volumeSlider = volSld;
+
+            // Wobble slider
+            var wobLbl = CreateText("Wobble: 30%", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
+            wobLbl.GetComponent<LayoutElement>().preferredHeight = 14;
+            uiController.wobbleLabel = wobLbl.GetComponent<Text>();
+            var wobSld = CreateSlider(layoutGO.transform);
+            uiController.wobbleSlider = wobSld;
+
+            // Mute buttons
+            var muteDroneBtn = CreateButton("Mute BG", layoutGO.transform, new Color(0.3f, 0.3f, 0.35f));
+            uiController.muteDroneButton = muteDroneBtn;
+            uiController.muteDroneText = muteDroneBtn.GetComponentInChildren<Text>();
+
+            var muteSfxBtn = CreateButton("Mute SFX", layoutGO.transform, new Color(0.3f, 0.3f, 0.35f));
+            uiController.muteSfxButton = muteSfxBtn;
+            uiController.muteSfxText = muteSfxBtn.GetComponentInChildren<Text>();
+
+            CreateSpacer(layoutGO.transform, 4);
 
             // Quit button
             var quitBtn = CreateButton("Quit", layoutGO.transform, new Color(0.4f, 0.4f, 0.45f));
             uiController.quitButton = quitBtn;
 
+            // --- Right Panel (Solve Tree + Vitals) ---
+            var rightPanelGO = CreateUIElement("RightPanel", canvasGO.transform);
+            var rightPanelRect = rightPanelGO.GetComponent<RectTransform>();
+            rightPanelRect.anchorMin = new Vector2(1, 0);
+            rightPanelRect.anchorMax = new Vector2(1, 1);
+            rightPanelRect.pivot = new Vector2(1, 0.5f);
+            rightPanelRect.sizeDelta = new Vector2(550, 0);
+            rightPanelRect.anchoredPosition = Vector2.zero;
+            var rightPanelImg = rightPanelGO.AddComponent<Image>();
+            rightPanelImg.color = new Color(0.04f, 0.04f, 0.07f, 0.9f);
+
+            // --- Solve Tree (top 55%) ---
+            var treeTitleGO = CreateUIElement("TreeTitle", rightPanelGO.transform);
+            var treeTitleRect = treeTitleGO.GetComponent<RectTransform>();
+            treeTitleRect.anchorMin = new Vector2(0, 1);
+            treeTitleRect.anchorMax = new Vector2(1, 1);
+            treeTitleRect.pivot = new Vector2(0.5f, 1);
+            treeTitleRect.anchoredPosition = new Vector2(0, -2);
+            treeTitleRect.sizeDelta = new Vector2(0, 16);
+            var treeTitleText = treeTitleGO.AddComponent<Text>();
+            treeTitleText.text = "Solve Tree";
+            treeTitleText.fontSize = 11;
+            treeTitleText.alignment = TextAnchor.MiddleCenter;
+            treeTitleText.color = new Color(0.6f, 0.6f, 0.7f);
+            treeTitleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+            var treeImageGO = CreateUIElement("TreeImage", rightPanelGO.transform);
+            var treeImageRect = treeImageGO.GetComponent<RectTransform>();
+            treeImageRect.anchorMin = new Vector2(0, 0.45f);
+            treeImageRect.anchorMax = new Vector2(1, 1);
+            treeImageRect.offsetMin = new Vector2(4, 0);
+            treeImageRect.offsetMax = new Vector2(-4, -20);
+            var treeRawImage = treeImageGO.AddComponent<RawImage>();
+            treeRawImage.color = Color.white;
+
+            var treeRenderer = managerGO.AddComponent<SolveTreeRenderer>();
+            treeRenderer.targetImage = treeRawImage;
+
+            // --- Agent Vitals (bottom 45%) ---
+            var vitalsTitle = CreateUIElement("VitalsTitle", rightPanelGO.transform);
+            var vitalsTitleRect = vitalsTitle.GetComponent<RectTransform>();
+            vitalsTitleRect.anchorMin = new Vector2(0, 0.43f);
+            vitalsTitleRect.anchorMax = new Vector2(1, 0.45f);
+            vitalsTitleRect.offsetMin = new Vector2(8, 0);
+            vitalsTitleRect.offsetMax = new Vector2(-8, 0);
+            var vitalsTitleText = vitalsTitle.AddComponent<Text>();
+            vitalsTitleText.text = "AGENTS";
+            vitalsTitleText.fontSize = 11;
+            vitalsTitleText.fontStyle = FontStyle.Bold;
+            vitalsTitleText.alignment = TextAnchor.MiddleLeft;
+            vitalsTitleText.color = new Color(0.7f, 0.5f, 0.9f);
+            vitalsTitleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+            // Summary line (TOTAL / ACTIVE / DEAD / SOLVED)
+            var summaryGO = CreateUIElement("VitalsSummary", rightPanelGO.transform);
+            var summaryRect = summaryGO.GetComponent<RectTransform>();
+            summaryRect.anchorMin = new Vector2(0, 0.38f);
+            summaryRect.anchorMax = new Vector2(1, 0.43f);
+            summaryRect.offsetMin = new Vector2(8, 0);
+            summaryRect.offsetMax = new Vector2(-8, 0);
+            var summaryText = summaryGO.AddComponent<Text>();
+            summaryText.text = "";
+            summaryText.fontSize = 10;
+            summaryText.alignment = TextAnchor.MiddleLeft;
+            summaryText.color = new Color(0.8f, 0.8f, 0.85f);
+            summaryText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            summaryText.supportRichText = true;
+
+            // Agent list (scrollable text)
+            // Header
+            var headerGO = CreateUIElement("VitalsHeader", rightPanelGO.transform);
+            var headerRect = headerGO.GetComponent<RectTransform>();
+            headerRect.anchorMin = new Vector2(0, 0.35f);
+            headerRect.anchorMax = new Vector2(1, 0.38f);
+            headerRect.offsetMin = new Vector2(8, 0);
+            headerRect.offsetMax = new Vector2(-8, 0);
+            var headerText = headerGO.AddComponent<Text>();
+            headerText.text = "  ID         STATUS    PATHS  LIFETIME";
+            headerText.fontSize = 9;
+            headerText.alignment = TextAnchor.MiddleLeft;
+            headerText.color = new Color(0.5f, 0.5f, 0.55f);
+            headerText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+            // Agent list text area
+            var agentListGO = CreateUIElement("AgentList", rightPanelGO.transform);
+            var agentListRect = agentListGO.GetComponent<RectTransform>();
+            agentListRect.anchorMin = new Vector2(0, 0);
+            agentListRect.anchorMax = new Vector2(1, 0.35f);
+            agentListRect.offsetMin = new Vector2(8, 4);
+            agentListRect.offsetMax = new Vector2(-8, 0);
+            var agentListText = agentListGO.AddComponent<Text>();
+            agentListText.text = "";
+            agentListText.fontSize = 9;
+            agentListText.alignment = TextAnchor.UpperLeft;
+            agentListText.color = Color.white;
+            agentListText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            agentListText.supportRichText = true;
+            agentListText.verticalOverflow = VerticalWrapMode.Truncate;
+
+            // Wire vitals text references to UI controller
+            uiController.vitalsSummaryText = summaryText;
+            uiController.agentListText = agentListText;
+
             // --- Wire references ---
             manager.mazeRenderer = renderer;
             manager.uiController = uiController;
             manager.audioEngine = audioEngine;
+            manager.solveTreeRenderer = treeRenderer;
 
             // Save scene
             var scenePath = "Assets/Scenes/MazeSolver.unity";

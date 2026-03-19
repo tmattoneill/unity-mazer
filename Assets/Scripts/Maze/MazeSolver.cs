@@ -17,6 +17,8 @@ namespace MazeSolver
         public int ActiveCount { get; private set; }
         public int DeadCount { get; private set; }
         public int TotalSpawned { get; private set; }
+        public int CurrentStep { get; private set; }
+        public int SolvedCount { get; private set; }
 
         byte[,] grid;
         int n;
@@ -38,6 +40,8 @@ namespace MazeSolver
             ActiveCount = 0;
             DeadCount = 0;
             TotalSpawned = 0;
+            CurrentStep = 0;
+            SolvedCount = 0;
             nextAgentId = 0;
 
             SpawnAgent(Vector2Int.zero, -1, new List<Vector2Int>());
@@ -46,7 +50,7 @@ namespace MazeSolver
         void SpawnAgent(Vector2Int start, int parentId, List<Vector2Int> inheritedPath)
         {
             int id = nextAgentId++;
-            var agent = new AgentData(id, parentId, start, inheritedPath);
+            var agent = new AgentData(id, parentId, start, inheritedPath, CurrentStep);
             Agents[id] = agent;
             TotalSpawned++;
 
@@ -68,6 +72,8 @@ namespace MazeSolver
 
             if (IsSolved || !HasActiveAgents) return;
 
+            CurrentStep++;
+
             // Collect active agents first (avoid modifying dict during iteration)
             var activeAgents = new List<AgentData>();
             foreach (var kvp in Agents)
@@ -85,6 +91,7 @@ namespace MazeSolver
                 if (neighbors.Count == 0)
                 {
                     agent.Status = AgentStatus.Dead;
+                    agent.DeathStep = CurrentStep;
                     StepEvents.Add(new SolverEvent
                     {
                         Type = SolverEventType.AgentDied,
@@ -107,6 +114,7 @@ namespace MazeSolver
                     if (agent.Position == goal)
                     {
                         agent.Status = AgentStatus.Solved;
+                        agent.DeathStep = CurrentStep;
                         IsSolved = true;
                         SolutionPath = new List<Vector2Int>(agent.FullPath);
                         StepEvents.Add(new SolverEvent
@@ -133,10 +141,12 @@ namespace MazeSolver
             // Update counts
             ActiveCount = 0;
             DeadCount = 0;
+            SolvedCount = 0;
             foreach (var kvp in Agents)
             {
                 if (kvp.Value.Status == AgentStatus.Active) ActiveCount++;
                 else if (kvp.Value.Status == AgentStatus.Dead) DeadCount++;
+                else if (kvp.Value.Status == AgentStatus.Solved) SolvedCount++;
             }
             HasActiveAgents = ActiveCount > 0;
         }

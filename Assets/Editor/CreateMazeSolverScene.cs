@@ -116,6 +116,8 @@ namespace MazeSolver.Editor
             uiController.mazeSizeLabel = mazeSizeLabel.GetComponent<Text>();
             var mazeSizeSlider = CreateSlider(layoutGO.transform);
             uiController.mazeSizeSlider = mazeSizeSlider;
+            AddTooltip(mazeSizeLabel, "Grid width and height in cells (5-100). Takes effect on the next Generate & Solve.");
+            AddTooltip(mazeSizeSlider.gameObject, "Grid width and height in cells (5-100). Takes effect on the next Generate & Solve.");
 
             // Target Paths slider
             var pathsLabel = CreateText("Target Paths: 3", layoutGO.transform, 11, TextAnchor.MiddleLeft, new Color(0.8f, 0.8f, 0.9f));
@@ -123,6 +125,8 @@ namespace MazeSolver.Editor
             uiController.targetPathsLabel = pathsLabel.GetComponent<Text>();
             var pathsSlider = CreateSlider(layoutGO.transform);
             uiController.targetPathsSlider = pathsSlider;
+            AddTooltip(pathsLabel, "How many concurrent solver paths the maze generator aims for (1-5). Shapes the generated maze; takes effect on the next Generate & Solve.");
+            AddTooltip(pathsSlider.gameObject, "How many concurrent solver paths the maze generator aims for (1-5). Shapes the generated maze; takes effect on the next Generate & Solve.");
 
             // Speed slider
             var speedLabel = CreateText("Speed: 25 ms/step", layoutGO.transform, 11, TextAnchor.MiddleLeft, new Color(0.8f, 0.8f, 0.9f));
@@ -130,6 +134,8 @@ namespace MazeSolver.Editor
             uiController.speedLabel = speedLabel.GetComponent<Text>();
             var speedSlider = CreateSlider(layoutGO.transform);
             uiController.speedSlider = speedSlider;
+            AddTooltip(speedLabel, "Delay between solver steps in milliseconds. Lower is faster. Applies live to the running solve.");
+            AddTooltip(speedSlider.gameObject, "Delay between solver steps in milliseconds. Lower is faster. Applies live to the running solve.");
 
             CreateSpacer(layoutGO.transform, 2);
 
@@ -195,6 +201,11 @@ namespace MazeSolver.Editor
             uiController.variationLabel = CreateText("Variation: 35% (next phrase)", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f)).GetComponent<Text>();
             uiController.variationLabel.GetComponent<LayoutElement>().preferredHeight = 16;
             uiController.variationSlider = CreateSlider(layoutGO.transform);
+            {
+                const string tip = "How much the arrangement reinvents itself. At 0% the seeded theme repeats exactly; higher values develop the motif, swap instruments and shift harmony. Live, but only re-rolled at the start of each 8-bar phrase.";
+                AddTooltip(uiController.variationLabel.gameObject, tip);
+                AddTooltip(uiController.variationSlider.gameObject, tip);
+            }
 
             // Pitch slider
             var pitchLbl = CreateText("Tempo: 112 BPM", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
@@ -202,6 +213,11 @@ namespace MazeSolver.Editor
             uiController.pitchLabel = pitchLbl.GetComponent<Text>();
             var pitchSld = CreateSlider(layoutGO.transform);
             uiController.pitchSlider = pitchSld;
+            {
+                const string tip = "Playback tempo in beats per minute (92-132). Live: the composer re-reads it every 4 beats, so a change lands within a couple of seconds.";
+                AddTooltip(pitchLbl.gameObject, tip);
+                AddTooltip(pitchSld.gameObject, tip);
+            }
 
             // Volume slider
             var volLbl = CreateText("Volume: 50%", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
@@ -209,6 +225,11 @@ namespace MazeSolver.Editor
             uiController.volumeLabel = volLbl.GetComponent<Text>();
             var volSld = CreateSlider(layoutGO.transform);
             uiController.volumeSlider = volSld;
+            {
+                const string tip = "Overall volume of the orchestral mix, separate from Accents. Live and instant, smoothly faded.";
+                AddTooltip(volLbl.gameObject, tip);
+                AddTooltip(volSld.gameObject, tip);
+            }
 
             // Wobble slider
             var wobLbl = CreateText("Energy: 60%", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
@@ -216,19 +237,39 @@ namespace MazeSolver.Editor
             uiController.wobbleLabel = wobLbl.GetComponent<Text>();
             var wobSld = CreateSlider(layoutGO.transform);
             uiController.wobbleSlider = wobSld;
+            {
+                const string tip = "Pushes the composer's internal intensity target up or down: louder dynamics and busier inner voices when the ensemble is large. Live, audible within a beat or two.";
+                AddTooltip(wobLbl.gameObject, tip);
+                AddTooltip(wobSld.gameObject, tip);
+            }
 
             var densityLbl = CreateText("Density: 65%", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
             densityLbl.GetComponent<LayoutElement>().preferredHeight = 14;
             uiController.densityLabel = densityLbl.GetComponent<Text>();
             uiController.densitySlider = CreateSlider(layoutGO.transform);
+            {
+                const string tip = "Caps how many ensemble layers can be active at once. The live count of active solver paths brings instruments in and out; Density sets the ceiling they can reach. Live, applied at the next bar.";
+                AddTooltip(densityLbl.gameObject, tip);
+                AddTooltip(uiController.densitySlider.gameObject, tip);
+            }
             var hallLbl = CreateText("Hall: 28%", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
             hallLbl.GetComponent<LayoutElement>().preferredHeight = 14;
             uiController.hallLabel = hallLbl.GetComponent<Text>();
             uiController.hallSlider = CreateSlider(layoutGO.transform);
+            {
+                const string tip = "Amount of reverb/room sound mixed into the signal. Live and instant.";
+                AddTooltip(hallLbl.gameObject, tip);
+                AddTooltip(uiController.hallSlider.gameObject, tip);
+            }
             var accentLbl = CreateText("Accents: 60%", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
             accentLbl.GetComponent<LayoutElement>().preferredHeight = 14;
             uiController.accentVolumeLabel = accentLbl.GetComponent<Text>();
             uiController.accentVolumeSlider = CreateSlider(layoutGO.transform);
+            {
+                const string tip = "Volume of the one-shot stingers that mark agents forking or dying, separate from the main Volume slider. Live and instant.";
+                AddTooltip(accentLbl.gameObject, tip);
+                AddTooltip(uiController.accentVolumeSlider.gameObject, tip);
+            }
 
             // Mute buttons
             var muteDroneBtn = CreateButton("Mute Music", layoutGO.transform, new Color(0.3f, 0.3f, 0.35f));
@@ -507,6 +548,15 @@ namespace MazeSolver.Editor
             slider.targetGraphic = handleImg;
 
             return slider;
+        }
+
+        // Bubbling pointer-enter events mean this works whether go is a label (a Text is
+        // itself a raycastable Graphic) or a slider (its Background/Fill/Handle children
+        // are the raycastable Graphics; the event bubbles up to this parent).
+        static void AddTooltip(GameObject go, string text)
+        {
+            var target = go.AddComponent<UITooltipTarget>();
+            target.Text = text;
         }
 
         static Button CreateButton(string label, Transform parent, Color bgColor)

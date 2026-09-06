@@ -26,6 +26,12 @@ namespace MazeSolver
 
         public void Initialize(int width, int height)
         {
+            if (texture && texWidth == width && texHeight == height)
+            {
+                Clear();
+                return;
+            }
+            if (texture) Destroy(texture);
             texWidth = width;
             texHeight = height;
             texture = new Texture2D(texWidth, texHeight, TextureFormat.RGBA32, false);

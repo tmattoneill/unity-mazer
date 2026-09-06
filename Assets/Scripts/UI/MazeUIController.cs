@@ -5,50 +5,23 @@ namespace MazeSolver
 {
     public class MazeUIController : MonoBehaviour
     {
-        [Header("Sliders")]
-        public Slider mazeSizeSlider;
-        public Slider targetPathsSlider;
-        public Slider speedSlider;
-
-        [Header("Buttons")]
-        public Button generateButton;
-        public Button pauseButton;
-        public Button resetButton;
-        public Button quitButton;
-
-        [Header("Labels")]
-        public Text mazeSizeLabel;
-        public Text targetPathsLabel;
-        public Text speedLabel;
-        public Text statusText;
-        public Text agentCountText;
-        public Text pauseButtonText;
-
-        [Header("Audio Controls")]
-        public Button droneModeButton;
-        public Text droneModeText;
-        public Slider pitchSlider;
-        public Slider volumeSlider;
-        public Slider wobbleSlider;
-        public Text pitchLabel;
-        public Text volumeLabel;
-        public Text wobbleLabel;
-        public Button muteDroneButton;
-        public Text muteDroneText;
-        public Button muteSfxButton;
-        public Text muteSfxText;
-        public Button trackButton;
-        public Text trackButtonText;
-
-        [Header("Vitals")]
-        public Text vitalsSummaryText;
-        public Text agentListText;
-
+        public Slider mazeSizeSlider, targetPathsSlider, speedSlider;
+        public Button generateButton, pauseButton, resetButton, quitButton;
+        public Text mazeSizeLabel, targetPathsLabel, speedLabel, statusText, agentCountText, pauseButtonText;
+        // Keep serialized references to the existing controls when upgrading a saved scene.
+        public Button droneModeButton, muteDroneButton, muteSfxButton, trackButton;
+        public Text droneModeText, muteDroneText, muteSfxText, trackButtonText;
+        public Slider pitchSlider, volumeSlider, wobbleSlider, densitySlider, hallSlider, accentVolumeSlider;
+        public Text pitchLabel, volumeLabel, wobbleLabel, densityLabel, hallLabel, accentVolumeLabel;
+        public Text vitalsSummaryText, agentListText, welcomeText;
+        public Slider variationSlider;
+        public Text variationLabel, seedModeText, recordingStatusText, currentSeedText;
+        public Button seedModeButton, saveWavButton, showFolderButton;
+        public InputField seedInput;
+        public Dropdown tonicDropdown, tonalityDropdown;
+        string lastRecordingStatus;
         MazeGameManager gameManager;
-        bool droneMuted;
-        bool sfxMuted;
-        DroneMode currentDroneMode = DroneMode.Mono;
-
+        MusicSettings music = MusicSettings.Default;
         public int MazeSize => Mathf.RoundToInt(mazeSizeSlider.value);
         public int TargetPaths => Mathf.RoundToInt(targetPathsSlider.value);
         public float SpeedMs => speedSlider.value;
@@ -56,147 +29,137 @@ namespace MazeSolver
         public void Initialize(MazeGameManager manager)
         {
             gameManager = manager;
-
-            mazeSizeSlider.minValue = 5;
-            mazeSizeSlider.maxValue = 100;
-            mazeSizeSlider.wholeNumbers = true;
-            mazeSizeSlider.value = 25;
-            mazeSizeSlider.onValueChanged.AddListener(v => UpdateLabels());
-
-            targetPathsSlider.minValue = 1;
-            targetPathsSlider.maxValue = 5;
-            targetPathsSlider.wholeNumbers = true;
-            targetPathsSlider.value = 3;
-            targetPathsSlider.onValueChanged.AddListener(v => UpdateLabels());
-
-            speedSlider.minValue = 1;
-            speedSlider.maxValue = 200;
-            speedSlider.wholeNumbers = true;
-            speedSlider.value = 25;
-            speedSlider.onValueChanged.AddListener(v => UpdateLabels());
-
+            Configure(mazeSizeSlider, 5, 100, 25);
+            Configure(targetPathsSlider, 1, 5, 3);
+            Configure(speedSlider, 1, 200, 25);
+            Configure(pitchSlider, 92, 132, 112);
+            Configure(volumeSlider, 0, 100, 65);
+            Configure(wobbleSlider, 0, 100, 60);
+            Configure(densitySlider, 0, 100, 65);
+            Configure(hallSlider, 0, 100, 28);
+            Configure(accentVolumeSlider, 0, 100, 60);
+            Configure(variationSlider, 0, 100, 35);
+            if (tonicDropdown)
+            {
+                tonicDropdown.ClearOptions();
+                tonicDropdown.AddOptions(new System.Collections.Generic.List<string>(MusicalKey.Names));
+                tonicDropdown.SetValueWithoutNotify(2);
+                tonicDropdown.onValueChanged.AddListener(v => { music.Tonic = v; ApplyMusic(); });
+            }
+            if (tonalityDropdown)
+            {
+                tonalityDropdown.ClearOptions();
+                tonalityDropdown.AddOptions(new System.Collections.Generic.List<string> { "Minor", "Major" });
+                tonalityDropdown.SetValueWithoutNotify(0);
+                tonalityDropdown.onValueChanged.AddListener(v => { music.Tonality = (Tonality)v; ApplyMusic(); });
+            }
+            if (seedModeButton) seedModeButton.onClick.AddListener(() =>
+            {
+                gameManager.AudioEngine.NewSeedEachRun = !gameManager.AudioEngine.NewSeedEachRun;
+                RefreshSeed();
+            });
+            if (seedInput) seedInput.onEndEdit.AddListener(value =>
+            {
+                if (int.TryParse(value, out int seed) && seed > 0) gameManager.AudioEngine.SelectedSeed = seed;
+                RefreshSeed();
+            });
+            if (saveWavButton) saveWavButton.onClick.AddListener(() => gameManager.AudioEngine.SaveRecording());
+            if (showFolderButton) showFolderButton.onClick.AddListener(() => gameManager.AudioEngine.ShowRecordingsFolder());
+            RefreshSeed();
             generateButton.onClick.AddListener(() => gameManager.GenerateAndSolve());
             pauseButton.onClick.AddListener(() => gameManager.TogglePause());
-            resetButton.onClick.AddListener(() => gameManager.Reset());
+            resetButton.onClick.AddListener(() => gameManager.ResetMaze());
             if (quitButton) quitButton.onClick.AddListener(() => Application.Quit());
-
-            // Audio controls
-            if (pitchSlider)
+            if (droneModeButton) droneModeButton.onClick.AddListener(() =>
             {
-                pitchSlider.minValue = -12;
-                pitchSlider.maxValue = 12;
-                pitchSlider.wholeNumbers = true;
-                pitchSlider.value = 0;
-                pitchSlider.onValueChanged.AddListener(v =>
-                {
-                    gameManager.AudioEngine.SetDronePitchSemitones(Mathf.RoundToInt(v));
-                    UpdateLabels();
-                });
-            }
-
-            if (volumeSlider)
-            {
-                volumeSlider.minValue = 0;
-                volumeSlider.maxValue = 100;
-                volumeSlider.wholeNumbers = true;
-                volumeSlider.value = 50;
-                volumeSlider.onValueChanged.AddListener(v =>
-                {
-                    gameManager.AudioEngine.SetDroneVolumePct(v);
-                    UpdateLabels();
-                });
-            }
-
-            if (wobbleSlider)
-            {
-                wobbleSlider.minValue = 0;
-                wobbleSlider.maxValue = 100;
-                wobbleSlider.wholeNumbers = true;
-                wobbleSlider.value = 30;
-                wobbleSlider.onValueChanged.AddListener(v =>
-                {
-                    gameManager.AudioEngine.SetDroneWobblePct(v);
-                    UpdateLabels();
-                });
-            }
-
-            if (droneModeButton)
-            {
-                droneModeButton.onClick.AddListener(() =>
-                {
-                    // Cycle: Mono -> Chord -> Soundtrack -> Mono
-                    switch (currentDroneMode)
-                    {
-                        case DroneMode.Mono: currentDroneMode = DroneMode.Chord; break;
-                        case DroneMode.Chord: currentDroneMode = DroneMode.Soundtrack; break;
-                        case DroneMode.Soundtrack: currentDroneMode = DroneMode.Mono; break;
-                    }
-                    gameManager.AudioEngine.SetDroneMode(currentDroneMode);
-                    // Reapply volume since gain mapping differs per mode
-                    gameManager.AudioEngine.SetDroneVolumePct(volumeSlider.value);
-                    UpdateLabels();
-                });
-            }
-
-            if (trackButton)
-            {
-                trackButton.onClick.AddListener(() =>
-                {
-                    gameManager.AudioEngine.CycleTrack();
-                    UpdateLabels();
-                });
-            }
-
-            if (muteDroneButton)
-            {
-                muteDroneButton.onClick.AddListener(() =>
-                {
-                    droneMuted = !droneMuted;
-                    gameManager.AudioEngine.SetDroneMuted(droneMuted);
-                    UpdateLabels();
-                });
-            }
-
-            if (muteSfxButton)
-            {
-                muteSfxButton.onClick.AddListener(() =>
-                {
-                    sfxMuted = !sfxMuted;
-                    gameManager.AudioEngine.SetSfxMuted(sfxMuted);
-                    UpdateLabels();
-                });
-            }
-
-            UpdateLabels();
-            SetStatus("Ready");
+                music.Mode = music.Mode == MusicMode.Orchestra ? MusicMode.Soundtrack : MusicMode.Orchestra;
+                ApplyMusic();
+            });
+            if (muteDroneButton) muteDroneButton.onClick.AddListener(() => { music.MusicMuted = !music.MusicMuted; ApplyMusic(); });
+            if (muteSfxButton) muteSfxButton.onClick.AddListener(() => { music.AccentsMuted = !music.AccentsMuted; ApplyMusic(); });
+            if (trackButton) trackButton.onClick.AddListener(() => { gameManager.AudioEngine.CycleTrack(); UpdateLabels(); });
+            ApplyMusic();
+            SetStatus(gameManager.AudioEngine.OrchestraAvailable ? "Ready" : "Orchestra unavailable: " + gameManager.AudioEngine.Diagnostic);
             SetAgentCount(0, 0, 0);
         }
-
+        void Configure(Slider slider, int min, int max, int value)
+        {
+            if (!slider) return;
+            slider.minValue = min; slider.maxValue = max; slider.wholeNumbers = true; slider.value = value;
+            slider.onValueChanged.AddListener(v => ApplyMusic());
+        }
+        void ApplyMusic()
+        {
+            if (variationSlider) music.Variation = variationSlider.value / 100f;
+            if (pitchSlider) music.Tempo = Mathf.RoundToInt(pitchSlider.value);
+            if (volumeSlider) music.Volume = volumeSlider.value / 100f;
+            if (wobbleSlider) music.Energy = wobbleSlider.value / 100f;
+            if (densitySlider) music.Density = densitySlider.value / 100f;
+            if (hallSlider) music.Hall = hallSlider.value / 100f;
+            if (accentVolumeSlider) music.AccentVolume = accentVolumeSlider.value / 100f;
+            gameManager.AudioEngine.ApplySettings(music);
+            music = gameManager.AudioEngine.Settings;
+            UpdateLabels();
+        }
         void UpdateLabels()
         {
             if (mazeSizeLabel) mazeSizeLabel.text = $"Maze Size: {MazeSize}";
             if (targetPathsLabel) targetPathsLabel.text = $"Target Paths: {TargetPaths}";
             if (speedLabel) speedLabel.text = $"Speed: {SpeedMs:0} ms/step";
-            if (pitchLabel) pitchLabel.text = $"Pitch: {Mathf.RoundToInt(pitchSlider.value)} st";
-            if (volumeLabel) volumeLabel.text = $"Volume: {Mathf.RoundToInt(volumeSlider.value)}%";
-            if (wobbleLabel) wobbleLabel.text = $"Wobble: {Mathf.RoundToInt(wobbleSlider.value)}%";
-            if (droneModeText)
-            {
-                switch (currentDroneMode)
-                {
-                    case DroneMode.Mono: droneModeText.text = "Mono"; break;
-                    case DroneMode.Chord: droneModeText.text = "Chord"; break;
-                    case DroneMode.Soundtrack: droneModeText.text = "Soundtrack"; break;
-                }
-            }
-            if (trackButtonText && gameManager != null)
+            if (variationLabel) variationLabel.text = $"Variation: {music.Variation:P0} (next phrase)";
+            if (pitchLabel) pitchLabel.text = $"Tempo: {music.Tempo} BPM";
+            if (volumeLabel) volumeLabel.text = $"Music: {music.Volume:P0}";
+            if (wobbleLabel) wobbleLabel.text = $"Energy: {music.Energy:P0}";
+            if (densityLabel) densityLabel.text = $"Density: {music.Density:P0}";
+            if (hallLabel) hallLabel.text = $"Hall: {music.Hall:P0}";
+            if (accentVolumeLabel) accentVolumeLabel.text = $"Accents: {music.AccentVolume:P0}";
+            if (droneModeText) droneModeText.text = music.Mode == MusicMode.Orchestra ? "Orchestra (live)" : "Soundtrack (recorded)";
+            if (droneModeButton) droneModeButton.interactable = gameManager.AudioEngine.OrchestraAvailable;
+            if (muteDroneText) muteDroneText.text = music.MusicMuted ? "Unmute Music" : "Mute Music";
+            if (muteSfxText) muteSfxText.text = music.AccentsMuted ? "Unmute Accents" : "Mute Accents";
+            bool recorded = music.Mode == MusicMode.Soundtrack;
+            if (trackButton) trackButton.gameObject.SetActive(recorded);
+            if (trackButtonText)
             {
                 var names = gameManager.AudioEngine.GetTrackNames();
-                int idx = gameManager.AudioEngine.CurrentTrackIndex;
-                trackButtonText.text = names.Length > 0 ? names[idx] : "No tracks";
+                trackButtonText.text = names.Length > 0 ? names[gameManager.AudioEngine.CurrentTrackIndex] : "No tracks";
             }
-            if (muteDroneText) muteDroneText.text = droneMuted ? "Unmute BG" : "Mute BG";
-            if (muteSfxText) muteSfxText.text = sfxMuted ? "Unmute SFX" : "Mute SFX";
+            foreach (var control in new Slider[] { pitchSlider, wobbleSlider, densitySlider, hallSlider, accentVolumeSlider, variationSlider })
+                if (control) control.interactable = !recorded;
+            if (tonicDropdown) tonicDropdown.interactable = !recorded;
+            if (tonalityDropdown) tonalityDropdown.interactable = !recorded;
+            if (seedModeButton) seedModeButton.interactable = !recorded;
+            RefreshSeed();
+        }
+
+        public void RefreshSeed()
+        {
+            if (gameManager == null) return;
+            var engine = gameManager.AudioEngine;
+            if (currentSeedText) currentSeedText.text = engine.CurrentSeed == 0 ? "No performance started yet" : "Current seed: " + engine.CurrentSeed;
+            if (seedInput)
+            {
+                seedInput.SetTextWithoutNotify(engine.SelectedSeed.ToString());
+                seedInput.interactable = !engine.NewSeedEachRun && music.Mode == MusicMode.Orchestra;
+            }
+            if (seedModeText) seedModeText.text = engine.NewSeedEachRun ? "New seed each run: ON" : "New seed each run: OFF";
+        }
+
+        void Update()
+        {
+            if (gameManager == null) return;
+            var engine = gameManager.AudioEngine;
+            if (saveWavButton) saveWavButton.interactable = engine.CanSaveRecording;
+            if (recordingStatusText && lastRecordingStatus != engine.RecordingStatus)
+            {
+                lastRecordingStatus = engine.RecordingStatus;
+                recordingStatusText.text = lastRecordingStatus;
+            }
+        }
+
+        public void SetWelcomeVisible(bool visible)
+        {
+            if (welcomeText) welcomeText.gameObject.SetActive(visible);
         }
 
         public void SetStatus(string status)

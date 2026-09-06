@@ -23,6 +23,7 @@ namespace MazeSolver
         void Start()
         {
             uiController.Initialize(this);
+            if (solveTreeRenderer) solveTreeRenderer.Initialize(512, 512);
         }
 
         void Update()
@@ -36,6 +37,7 @@ namespace MazeSolver
             if (solveCoroutine != null)
                 StopCoroutine(solveCoroutine);
 
+            uiController.SetWelcomeVisible(false);
             currentN = uiController.MazeSize;
             int targetPaths = uiController.TargetPaths;
             int gridSize = 2 * currentN - 1;
@@ -57,7 +59,8 @@ namespace MazeSolver
             isPaused = false;
             uiController.SetPauseText(false);
 
-            audioEngine.StartDrone();
+            audioEngine.StartSession();
+            uiController.RefreshSeed();
 
             if (solveTreeRenderer)
                 solveTreeRenderer.Initialize(512, 512);
@@ -82,7 +85,7 @@ namespace MazeSolver
                     // Update intensity
                     int totalCells = currentN * currentN;
                     float explorationRatio = (float)solver.Visited.Count / totalCells;
-                    audioEngine.UpdateIntensity(solver.ActiveCount, explorationRatio);
+                    audioEngine.SubmitSnapshot(solver.ActiveCount, explorationRatio);
 
                     // Update solve tree
                     if (solveTreeRenderer)
@@ -97,7 +100,7 @@ namespace MazeSolver
                         uiController.SetStatus("Solved!");
                         uiController.SetSolving(false);
                         isSolving = false;
-                        audioEngine.PlayFinalChord();
+                        audioEngine.CompleteSession(SessionOutcome.Solved);
                         break;
                     }
                 }
@@ -111,7 +114,7 @@ namespace MazeSolver
                 uiController.SetStatus("No solution found");
                 uiController.SetSolving(false);
                 isSolving = false;
-                audioEngine.StopDrone();
+                audioEngine.CompleteSession(SessionOutcome.Exhausted);
             }
         }
 
@@ -124,7 +127,7 @@ namespace MazeSolver
             audioEngine.SetPaused(isPaused);
         }
 
-        public void Reset()
+        public void ResetMaze()
         {
             if (solveCoroutine != null)
             {
@@ -137,9 +140,10 @@ namespace MazeSolver
             solver = null;
 
             mazeRenderer.Clear();
-            audioEngine.StopAll();
+            audioEngine.StopSession();
             if (solveTreeRenderer) solveTreeRenderer.Clear();
 
+            uiController.SetWelcomeVisible(true);
             uiController.SetStatus("Ready");
             uiController.SetSolving(false);
             uiController.SetPauseText(false);

@@ -8,7 +8,7 @@ namespace MazeSolver.Editor
     public static class CreateMazeSolverScene
     {
         [MenuItem("Tools/Create Maze Solver Scene")]
-        static void Create()
+        public static void Create()
         {
             // Create a fresh scene
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -32,7 +32,6 @@ namespace MazeSolver.Editor
             // --- Maze Manager ---
             var managerGO = new GameObject("MazeManager");
             var manager = managerGO.AddComponent<MazeGameManager>();
-            var audio = managerGO.AddComponent<AudioSource>();
             var audioEngine = managerGO.AddComponent<MazeAudioEngine>();
 
             // --- UI Canvas ---
@@ -63,13 +62,31 @@ namespace MazeSolver.Editor
             var panelImg = panelGO.AddComponent<Image>();
             panelImg.color = new Color(0.05f, 0.05f, 0.08f, 0.85f);
 
-            // --- Vertical layout group for controls (stretches to fill panel) ---
-            var layoutGO = CreateUIElement("Controls", panelGO.transform);
+            var viewport = CreateUIElement("ControlsViewport", panelGO.transform);
+            var viewportRect = viewport.GetComponent<RectTransform>();
+            viewportRect.anchorMin = Vector2.zero; viewportRect.anchorMax = Vector2.one;
+            viewportRect.offsetMin = new Vector2(10, 10); viewportRect.offsetMax = new Vector2(-20, -10);
+            viewport.AddComponent<RectMask2D>();
+            var layoutGO = CreateUIElement("Controls", viewport.transform);
             var layoutRect = layoutGO.GetComponent<RectTransform>();
-            layoutRect.anchorMin = Vector2.zero;
-            layoutRect.anchorMax = Vector2.one;
-            layoutRect.offsetMin = new Vector2(10, 10);
-            layoutRect.offsetMax = new Vector2(-10, -10);
+            layoutRect.anchorMin = new Vector2(0, 1); layoutRect.anchorMax = Vector2.one;
+            layoutRect.pivot = new Vector2(0.5f, 1); layoutRect.sizeDelta = Vector2.zero;
+            var fitter = layoutGO.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            var scroll = panelGO.AddComponent<ScrollRect>();
+            scroll.viewport = viewportRect; scroll.content = layoutRect;
+            scroll.horizontal = false; scroll.vertical = true; scroll.scrollSensitivity = 32;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            var scrollbar = DefaultControls.CreateScrollbar(ControlResources()).GetComponent<Scrollbar>();
+            scrollbar.transform.SetParent(panelGO.transform, false);
+            scrollbar.direction = Scrollbar.Direction.BottomToTop;
+            var scrollbarRect = scrollbar.GetComponent<RectTransform>();
+            scrollbarRect.anchorMin = new Vector2(1, 0); scrollbarRect.anchorMax = Vector2.one;
+            scrollbarRect.pivot = new Vector2(1, 0.5f); scrollbarRect.sizeDelta = new Vector2(8, -20);
+            scrollbarRect.anchoredPosition = new Vector2(-4, 0);
+            scroll.verticalScrollbar = scrollbar;
+            scrollbar.GetComponent<Image>().color = new Color(0.12f, 0.13f, 0.18f);
+            scrollbar.targetGraphic.color = new Color(0.4f, 0.45f, 0.6f);
             var vlg = layoutGO.AddComponent<VerticalLayoutGroup>();
             vlg.spacing = 4;
             vlg.padding = new RectOffset(4, 4, 4, 4);
@@ -135,7 +152,7 @@ namespace MazeSolver.Editor
             audioTitle.GetComponent<LayoutElement>().preferredHeight = 18;
 
             // Drone mode toggle button
-            var droneModeBtn = CreateButton("Mono", layoutGO.transform, new Color(0.25f, 0.3f, 0.45f));
+            var droneModeBtn = CreateButton("Orchestra (live)", layoutGO.transform, new Color(0.25f, 0.3f, 0.45f));
             uiController.droneModeButton = droneModeBtn;
             uiController.droneModeText = droneModeBtn.GetComponentInChildren<Text>();
 
@@ -144,8 +161,39 @@ namespace MazeSolver.Editor
             uiController.trackButton = trackBtn;
             uiController.trackButtonText = trackBtn.GetComponentInChildren<Text>();
 
+            uiController.saveWavButton = CreateButton("Save WAV", layoutGO.transform, new Color(0.15f, 0.4f, 0.35f));
+            uiController.showFolderButton = CreateButton("Show Recordings Folder", layoutGO.transform, new Color(0.2f, 0.25f, 0.3f));
+            uiController.recordingStatusText = CreateText("Complete a run to save its WAV.", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.8f, 0.8f)).GetComponent<Text>();
+            uiController.recordingStatusText.GetComponent<LayoutElement>().preferredHeight = 56;
+            uiController.recordingStatusText.horizontalOverflow = HorizontalWrapMode.Wrap;
+
+            var keyLabel = CreateText("Key and seed (next run)", layoutGO.transform, 12, TextAnchor.MiddleLeft, new Color(0.8f, 0.8f, 0.9f));
+            keyLabel.GetComponent<LayoutElement>().preferredHeight = 20;
+            uiController.tonicDropdown = CreateDropdown(layoutGO.transform, "D");
+            uiController.tonalityDropdown = CreateDropdown(layoutGO.transform, "Minor");
+            uiController.seedModeButton = CreateButton("New seed each run: ON", layoutGO.transform, new Color(0.2f, 0.25f, 0.4f));
+            uiController.seedModeText = uiController.seedModeButton.GetComponentInChildren<Text>();
+            var input = DefaultControls.CreateInputField(ControlResources());
+            input.transform.SetParent(layoutGO.transform, false);
+            input.AddComponent<LayoutElement>().preferredHeight = 28;
+            uiController.seedInput = input.GetComponent<InputField>();
+            uiController.seedInput.contentType = InputField.ContentType.IntegerNumber;
+            uiController.seedInput.characterLimit = 10;
+            uiController.seedInput.text = "431";
+            uiController.currentSeedText = CreateText("No performance started yet", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f)).GetComponent<Text>();
+            uiController.currentSeedText.GetComponent<LayoutElement>().preferredHeight = 16;
+            foreach (var text in input.GetComponentsInChildren<Text>(true))
+            {
+                text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                text.fontSize = 14; text.alignment = TextAnchor.MiddleLeft;
+                text.rectTransform.offsetMin = new Vector2(8, 2); text.rectTransform.offsetMax = new Vector2(-8, -2);
+            }
+            uiController.variationLabel = CreateText("Variation: 35% (next phrase)", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f)).GetComponent<Text>();
+            uiController.variationLabel.GetComponent<LayoutElement>().preferredHeight = 16;
+            uiController.variationSlider = CreateSlider(layoutGO.transform);
+
             // Pitch slider
-            var pitchLbl = CreateText("Pitch: 0 st", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
+            var pitchLbl = CreateText("Tempo: 112 BPM", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
             pitchLbl.GetComponent<LayoutElement>().preferredHeight = 14;
             uiController.pitchLabel = pitchLbl.GetComponent<Text>();
             var pitchSld = CreateSlider(layoutGO.transform);
@@ -159,18 +207,31 @@ namespace MazeSolver.Editor
             uiController.volumeSlider = volSld;
 
             // Wobble slider
-            var wobLbl = CreateText("Wobble: 30%", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
+            var wobLbl = CreateText("Energy: 60%", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
             wobLbl.GetComponent<LayoutElement>().preferredHeight = 14;
             uiController.wobbleLabel = wobLbl.GetComponent<Text>();
             var wobSld = CreateSlider(layoutGO.transform);
             uiController.wobbleSlider = wobSld;
 
+            var densityLbl = CreateText("Density: 65%", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
+            densityLbl.GetComponent<LayoutElement>().preferredHeight = 14;
+            uiController.densityLabel = densityLbl.GetComponent<Text>();
+            uiController.densitySlider = CreateSlider(layoutGO.transform);
+            var hallLbl = CreateText("Hall: 28%", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
+            hallLbl.GetComponent<LayoutElement>().preferredHeight = 14;
+            uiController.hallLabel = hallLbl.GetComponent<Text>();
+            uiController.hallSlider = CreateSlider(layoutGO.transform);
+            var accentLbl = CreateText("Accents: 60%", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
+            accentLbl.GetComponent<LayoutElement>().preferredHeight = 14;
+            uiController.accentVolumeLabel = accentLbl.GetComponent<Text>();
+            uiController.accentVolumeSlider = CreateSlider(layoutGO.transform);
+
             // Mute buttons
-            var muteDroneBtn = CreateButton("Mute BG", layoutGO.transform, new Color(0.3f, 0.3f, 0.35f));
+            var muteDroneBtn = CreateButton("Mute Music", layoutGO.transform, new Color(0.3f, 0.3f, 0.35f));
             uiController.muteDroneButton = muteDroneBtn;
             uiController.muteDroneText = muteDroneBtn.GetComponentInChildren<Text>();
 
-            var muteSfxBtn = CreateButton("Mute SFX", layoutGO.transform, new Color(0.3f, 0.3f, 0.35f));
+            var muteSfxBtn = CreateButton("Mute Accents", layoutGO.transform, new Color(0.3f, 0.3f, 0.35f));
             uiController.muteSfxButton = muteSfxBtn;
             uiController.muteSfxText = muteSfxBtn.GetComponentInChildren<Text>();
 
@@ -283,11 +344,28 @@ namespace MazeSolver.Editor
             uiController.vitalsSummaryText = summaryText;
             uiController.agentListText = agentListText;
 
+            var welcomeGO = CreateUIElement("Welcome", canvasGO.transform);
+            var welcomeRect = welcomeGO.GetComponent<RectTransform>();
+            welcomeRect.anchorMin = welcomeRect.anchorMax = new Vector2(0.424f, 0.55f);
+            welcomeRect.sizeDelta = new Vector2(760, 180);
+            var welcome = welcomeGO.AddComponent<Text>();
+            welcome.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            welcome.fontSize = 26;
+            welcome.alignment = TextAnchor.MiddleCenter;
+            welcome.supportRichText = true;
+            welcome.raycastTarget = false;
+            welcome.color = new Color(0.65f, 0.68f, 0.75f);
+            welcome.text = "<b>A maze. A live orchestral score.</b>\n\n<size=18>Choose a maze size, then click Generate & Solve.\nThe orchestra responds as agents explore.\nSpace pauses and resumes.</size>";
+            uiController.welcomeText = welcome;
+
             // --- Wire references ---
             manager.mazeRenderer = renderer;
             manager.uiController = uiController;
             manager.audioEngine = audioEngine;
             manager.solveTreeRenderer = treeRenderer;
+
+            audioEngine.scoreRules = Resources.Load<OrchestralScoreRules>("Orchestra/ScoreRules");
+            audioEngine.instrumentBank = Resources.Load<OrchestralInstrumentBank>("Orchestra/InstrumentBank");
 
             // Save scene
             var scenePath = "Assets/Scenes/MazeSolver.unity";
@@ -318,6 +396,32 @@ namespace MazeSolver.Editor
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             go.AddComponent<LayoutElement>();
             return go;
+        }
+
+        static DefaultControls.Resources ControlResources() => new DefaultControls.Resources
+        {
+            standard = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd"),
+            background = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Background.psd"),
+            inputField = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/InputFieldBackground.psd"),
+            knob = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd"),
+            checkmark = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Checkmark.psd"),
+            dropdown = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/DropdownArrow.psd"),
+            mask = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UIMask.psd")
+        };
+
+        static Dropdown CreateDropdown(Transform parent, string initialLabel)
+        {
+            var go = DefaultControls.CreateDropdown(ControlResources());
+            go.transform.SetParent(parent, false);
+            go.AddComponent<LayoutElement>().preferredHeight = 28;
+            foreach (var text in go.GetComponentsInChildren<Text>(true)) text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var dropdown = go.GetComponent<Dropdown>();
+            dropdown.captionText.fontSize = 14;
+            dropdown.captionText.rectTransform.offsetMin = new Vector2(8, 2);
+            dropdown.captionText.rectTransform.offsetMax = new Vector2(-25, -2);
+            dropdown.ClearOptions();
+            dropdown.AddOptions(new System.Collections.Generic.List<string> { initialLabel });
+            return dropdown;
         }
 
         static Slider CreateSlider(Transform parent)

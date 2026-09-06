@@ -18,7 +18,7 @@ Audio controls set music and accent volume, energy, density, variation, tempo an
 
 **Variation** defaults to 35% and changes at the next eight-bar phrase. At zero the seeded theme and arrangement remain stable. Higher values develop the motif, shift repeating patterns and hand parts between instruments, with broader harmonic changes above 50%. The opening material returns every fourth phrase. Energy and Density remain separate controls.
 
-**Save WAV** becomes available when a run and its musical ending finish. It saves the latest completed orchestral performance as stereo 24-bit PCM at the current output sample rate. Pauses, mix changes, accents and the reverb tail are included. Each save creates a new file under Unity's persistent data directory, in `Recordings`; **Show Recordings Folder** opens that location. On macOS this is normally `~/Library/Application Support/DefaultCompany/UnityMazer/Recordings`. The status shows the exact saved path.
+**Save WAV** becomes available when a run and its musical ending finish. It saves the latest completed orchestral performance as stereo 24-bit PCM at the current output sample rate. Pauses, mix changes, accents and the reverb tail are included. Each save creates a new file under Unity's persistent data directory, in `Recordings`; **Show Recordings Folder** opens that location. On macOS this is normally `~/Library/Application Support/Matt O'Neill/UnityMazer/Recordings`. The status shows the exact saved path.
 
 A new run retains the previous completed take until its replacement finishes. Reset, restart, switching to recorded soundtracks or changing audio devices discards an unfinished take. Save a take before quitting: temporary captures are removed on normal shutdown. Soundtrack recordings are excluded. Disk errors or recording-buffer overflow discard the affected capture and leave playback running.
 
@@ -39,6 +39,22 @@ UNITY='/Applications/Unity/Hub/Editor/6000.6.0f1/Unity.app/Contents/MacOS/Unity'
 ```
 
 The first command creates the score and bank assets if missing, rebuilds the maze scene from its editor tool, runs audio checks, and renders `Builds/Audio/Orchestra-demo.wav`. It rewrites the saved scene, so preserve any manual scene edits first. The second writes `Builds/UnityMazer.app`.
+
+### Windows and Linux
+
+`BuildOrchestra.BuildWindows` writes `Builds/Windows/UnityMazer.exe` and `BuildOrchestra.BuildLinux` writes `Builds/Linux/UnityMazer`. Substitute either method name in the build command above. Both need their Unity build-support module installed through Unity Hub (Windows Build Support (Mono) and Linux Build Support (Mono)); the editor's default install includes only macOS and WebGL.
+
+### App icon
+
+`MazeSolver.Editor.SetAppIcon.Apply` assigns `Assets/Textures/AppIcon.png` as the Standalone icon for all platforms. Run it once after replacing the icon image, then rebuild.
+
+### Distribution
+
+`Builds/` is gitignored. Finished builds are attached as zip assets to GitHub Releases, tagged by version. The macOS app is ad-hoc signed, without notarization, so Gatekeeper blocks a plain double-click on other machines. Right-click the app, choose Open, and confirm; or clear the quarantine flag with `xattr -dr com.apple.quarantine UnityMazer.app`.
+
+### macOS compatibility checklist
+
+When testing on another macOS version or machine: the app launches past Gatekeeper with the right-click Open route; Generate & Solve runs and agents animate; Orchestra mode plays without glitches; Save WAV writes to `~/Library/Application Support/Matt O'Neill/UnityMazer/Recordings`; the window resizes and the left panel scrolls; quit is clean with no crash log in Console.
 
 Checks cover all 24 keys, distinct seeded compositions, phrase-boundary variation, returning themes, WAV sample accuracy, pause and tail capture, cancellation and writer errors, repeatable output from a seed, bounded accents, note ranges, callback allocations, pause/resume, cadence completion, stopped voices, finite output, peak level and audio processing time. Comparison WAVs include seeds 431 and 432, Bb minor at 80% variation, and C major at zero variation. The demos follow a fixed activity trace through contrasting sections and an ending. It supports listening and tuning separately from maze generation.
 

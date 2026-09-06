@@ -166,23 +166,31 @@ namespace MazeSolver.Editor
         }
 
         [MenuItem("Tools/Orchestra/Build macOS")]
-        public static void BuildMac()
+        public static void BuildMac() => Build(BuildTarget.StandaloneOSX, "Builds/UnityMazer.app");
+
+        [MenuItem("Tools/Orchestra/Build Windows")]
+        public static void BuildWindows() => Build(BuildTarget.StandaloneWindows64, "Builds/Windows/UnityMazer.exe");
+
+        [MenuItem("Tools/Orchestra/Build Linux")]
+        public static void BuildLinux() => Build(BuildTarget.StandaloneLinux64, "Builds/Linux/UnityMazer");
+
+        static void Build(BuildTarget target, string locationPathName)
         {
             PlayerSettings.productName = "UnityMazer";
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 scenes = new[] { "Assets/Scenes/MazeSolver.unity" },
-                locationPathName = "Builds/UnityMazer.app", target = BuildTarget.StandaloneOSX,
+                locationPathName = locationPathName, target = target,
                 options = BuildOptions.None
             });
-            if (report.summary.result != BuildResult.Succeeded) throw new Exception("macOS build failed: " + report.summary.result);
-            if (Application.platform == RuntimePlatform.OSXEditor)
+            if (report.summary.result != BuildResult.Succeeded) throw new Exception(target + " build failed: " + report.summary.result);
+            if (target == BuildTarget.StandaloneOSX && Application.platform == RuntimePlatform.OSXEditor)
             {
                 // Unity's universal-player assembly can invalidate the signatures of bundled native libraries.
-                SignMac("--force --deep --sign - Builds/UnityMazer.app");
-                SignMac("--verify --deep --strict Builds/UnityMazer.app");
+                SignMac("--force --deep --sign - " + locationPathName);
+                SignMac("--verify --deep --strict " + locationPathName);
             }
-            Debug.Log("ORCHESTRA MACOS BUILD SUCCEEDED: Builds/UnityMazer.app");
+            Debug.Log("ORCHESTRA BUILD SUCCEEDED (" + target + "): " + locationPathName);
         }
 
         static void SignMac(string arguments)

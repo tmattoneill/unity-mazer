@@ -19,7 +19,9 @@ namespace MazeSolver
         public Button seedModeButton, saveWavButton, showFolderButton;
         public InputField seedInput;
         public Dropdown tonicDropdown, tonalityDropdown;
+        public Dropdown styleDropdown;
         string lastRecordingStatus;
+        float lastSpeedMs = -1;
         MazeGameManager gameManager;
         MusicSettings music = MusicSettings.Default;
         public int MazeSize => Mathf.RoundToInt(mazeSizeSlider.value);
@@ -39,6 +41,13 @@ namespace MazeSolver
             Configure(hallSlider, 0, 100, 28);
             Configure(accentVolumeSlider, 0, 100, 60);
             Configure(variationSlider, 0, 100, 35);
+            if (styleDropdown)
+            {
+                styleDropdown.ClearOptions();
+                styleDropdown.AddOptions(new System.Collections.Generic.List<string> { "Cinematic", "Ambient", "EDM", "Classical" });
+                styleDropdown.SetValueWithoutNotify(0);
+                styleDropdown.onValueChanged.AddListener(v => { music.Style = (MusicStyle)v; ApplyMusic(); });
+            }
             if (tonicDropdown)
             {
                 tonicDropdown.ClearOptions();
@@ -90,6 +99,11 @@ namespace MazeSolver
         }
         void ApplyMusic()
         {
+            if (lastSpeedMs != SpeedMs)
+            {
+                lastSpeedMs = SpeedMs;
+                gameManager.AudioEngine.Conductor.OnRequestedDelayChanged(SpeedMs / 1000f);
+            }
             if (variationSlider) music.Variation = variationSlider.value / 100f;
             if (pitchSlider) music.Tempo = Mathf.RoundToInt(pitchSlider.value);
             if (volumeSlider) music.Volume = volumeSlider.value / 100f;
@@ -128,6 +142,7 @@ namespace MazeSolver
                 if (control) control.interactable = !recorded;
             if (tonicDropdown) tonicDropdown.interactable = !recorded;
             if (tonalityDropdown) tonalityDropdown.interactable = !recorded;
+            if (styleDropdown) styleDropdown.interactable = !recorded;
             if (seedModeButton) seedModeButton.interactable = !recorded;
             RefreshSeed();
         }
@@ -230,7 +245,9 @@ namespace MazeSolver
 
                     int pathLen = agent.OwnPath.Count;
                     int lifeSteps = (agent.DeathStep >= 0 ? agent.DeathStep : solver.CurrentStep) - agent.SpawnStep;
-                    int lifeMs = Mathf.RoundToInt(lifeSteps * speedMs);
+                    // Observed step timing beats the requested delay, which is only a floor.
+                    float observed = gameManager.AudioEngine.Conductor.ObservedStepSeconds;
+                    int lifeMs = Mathf.RoundToInt(lifeSteps * (observed > 0 ? observed * 1000f : speedMs));
 
                     sb.AppendLine($"<color=#{hex}>\u25cf</color> #{agent.Id,-6} {status}  {pathLen,4}   {lifeMs}ms");
                 }

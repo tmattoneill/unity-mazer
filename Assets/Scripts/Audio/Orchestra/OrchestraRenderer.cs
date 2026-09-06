@@ -47,7 +47,8 @@ namespace MazeSolver
         }
         readonly Voice[] voices = new Voice[96];
         readonly InstrumentBankData bank;
-        readonly ProceduralScore score;
+        readonly IStyleComposer[] composers;
+        IStyleComposer score;
         readonly ScoreNote[] notes = new ScoreNote[64];
         readonly AudioCommandQueue commands = new AudioCommandQueue();
         readonly StereoHall hall;
@@ -71,7 +72,8 @@ namespace MazeSolver
         {
             this.bank = bank;
             this.sampleRate = sampleRate;
-            score = new ProceduralScore(rules);
+            composers = StyleComposerFactory.CreateAll(rules);
+            score = composers[(int)MusicStyle.Cinematic];
             hall = new StereoHall(sampleRate);
             releaseCoefficient = 1f / (sampleRate * 0.025f);
         }
@@ -86,7 +88,10 @@ namespace MazeSolver
                         recording?.Cancel(); recording = command.Recording;
                         Array.Clear(voices, 0, voices.Length); hall.Clear();
                         transportGain = musicGain = accentGain = 0; limiterGain = 1;
-                        settings = command.Settings; score.Reset(command.Value, settings);
+                        settings = command.Settings;
+                        int style = (int)settings.Style;
+                        score = composers[style >= 0 && style < composers.Length ? style : 0];
+                        score.Reset(command.Value, settings);
                         running = true; paused = false; beatFrame = beatLength = noteCount = nextNote = 0;
                         break;
                     case AudioCommandType.Stop:

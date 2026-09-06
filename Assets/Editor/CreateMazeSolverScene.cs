@@ -167,6 +167,10 @@ namespace MazeSolver.Editor
             uiController.recordingStatusText.GetComponent<LayoutElement>().preferredHeight = 56;
             uiController.recordingStatusText.horizontalOverflow = HorizontalWrapMode.Wrap;
 
+            var styleLabel = CreateText("Style (next run)", layoutGO.transform, 12, TextAnchor.MiddleLeft, new Color(0.8f, 0.8f, 0.9f));
+            styleLabel.GetComponent<LayoutElement>().preferredHeight = 20;
+            uiController.styleDropdown = CreateDropdown(layoutGO.transform, "Cinematic");
+
             var keyLabel = CreateText("Key and seed (next run)", layoutGO.transform, 12, TextAnchor.MiddleLeft, new Color(0.8f, 0.8f, 0.9f));
             keyLabel.GetComponent<LayoutElement>().preferredHeight = 20;
             uiController.tonicDropdown = CreateDropdown(layoutGO.transform, "D");

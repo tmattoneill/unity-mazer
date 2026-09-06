@@ -4,6 +4,7 @@ using UnityEngine;
 namespace MazeSolver
 {
     public enum MusicMode { Orchestra, Soundtrack }
+    public enum MusicStyle { Cinematic, Ambient, EDM, Classical }
     public enum Instrument { ViolinShort, ViolinLong, CelloShort, CelloLong, Bass, Horn, Trumpet, Flute, Bassoon, Timpani, BassDrum, Snare, Cymbal }
     public enum SessionOutcome { Solved, Exhausted }
     public enum Tonality { Minor, Major }
@@ -12,6 +13,7 @@ namespace MazeSolver
     public struct MusicSettings
     {
         public MusicMode Mode;
+        public MusicStyle Style; // takes effect at the next run, like key and seed
         public float Volume, AccentVolume, Energy, Density, Hall, Variation;
         public int Tempo, Tonic;
         public Tonality Tonality;
@@ -33,6 +35,10 @@ namespace MazeSolver
     {
         public int Active, Births, Deaths;
         public float Coverage;
+        // Forecast from the solve sheet; values <= 0 mean unknown or unreliable, and the
+        // composer must then behave exactly as it did before forecasting existed.
+        public float ForecastBeatsRemaining;
+        public float Progress;
     }
 
     public struct ScoreNote

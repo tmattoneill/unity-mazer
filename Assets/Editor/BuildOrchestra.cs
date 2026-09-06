@@ -39,6 +39,7 @@ namespace MazeSolver.Editor
             EditorUtility.SetDirty(bankAsset);
             AssetDatabase.SaveAssets();
             CreateMazeSolverScene.Create();
+            PresolveValidation.Run();
             Validate(rules, bankAsset);
         }
 
@@ -52,7 +53,7 @@ namespace MazeSolver.Editor
             OrchestraFeatureValidation.Run(rules);
             var bank = bankAsset.Load();
             Require(bank.MemoryBytes <= 256L * 1048576, "PCM bank exceeds budget");
-            var score = new ProceduralScore(rules);
+            var score = new CinematicComposer(rules);
             score.Reset(431);
             var notes = new ScoreNote[64];
             for (int beat = 0; beat < 256; beat++)

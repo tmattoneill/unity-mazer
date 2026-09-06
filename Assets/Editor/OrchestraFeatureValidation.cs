@@ -26,9 +26,10 @@ namespace MazeSolver.Editor
             for (int key = 0; key < 12; key++)
             {
                 settings.Tonic = key; settings.Tonality = (Tonality)mode; settings.Variation = 1;
-                var score = new ProceduralScore(rules); score.Reset(432, settings);
+                var score = new CinematicComposer(rules); score.Reset(432, settings);
                 for (int beat = 0; beat < 256; beat++)
                 {
+                    score.Observe(new MazeMusicSnapshot { Active = 2 + beat / 8 });
                     int count = score.ComposeBeat(settings, notes);
                     CheckChordNotes(score, notes, count);
                 }
@@ -49,7 +50,7 @@ namespace MazeSolver.Editor
                 }
             }
             settings = MusicSettings.Default; settings.Variation = 0;
-            var phraseScore = new ProceduralScore(rules); phraseScore.Reset(431, settings);
+            var phraseScore = new CinematicComposer(rules); phraseScore.Reset(431, settings);
             phraseScore.ComposeBeat(settings, notes);
             settings.Variation = 1;
             for (int beat = 1; beat < 32; beat++)
@@ -63,7 +64,7 @@ namespace MazeSolver.Editor
             Require(phraseScore.ThemeTransform == 0, "opening theme did not return");
             // Pending key settings must not transpose a running composition.
             settings = MusicSettings.Default;
-            var first = new ProceduralScore(rules); var second = new ProceduralScore(rules);
+            var first = new CinematicComposer(rules); var second = new CinematicComposer(rules);
             first.Reset(431, settings); second.Reset(431, settings);
             var changed = settings; changed.Tonic = 10; changed.Tonality = Tonality.Major;
             var other = new ScoreNote[64];
@@ -79,10 +80,12 @@ namespace MazeSolver.Editor
 
         static ulong Signature(OrchestralScoreRules rules, MusicSettings settings, int seed)
         {
-            var score = new ProceduralScore(rules); score.Reset(seed, settings);
+            var score = new CinematicComposer(rules); score.Reset(seed, settings);
             var notes = new ScoreNote[64]; ulong result = 14695981039346656037UL;
             for (int beat = 0; beat < 128; beat++)
             {
+                // A live population brings in the seed-bearing theme and lead layers.
+                score.Observe(new MazeMusicSnapshot { Active = 6 });
                 int count = score.ComposeBeat(settings, notes);
                 // Ignore sample takes and human timing: this checks the composition itself.
                 for (int i = 0; i < count; i++)
@@ -91,7 +94,7 @@ namespace MazeSolver.Editor
             return result;
         }
 
-        static void CheckChordNotes(ProceduralScore score, ScoreNote[] notes, int count)
+        static void CheckChordNotes(CinematicComposer score, ScoreNote[] notes, int count)
         {
             Require(count < notes.Length, "note buffer saturated");
             for (int i = 0; i < count; i++)

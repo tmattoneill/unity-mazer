@@ -19,6 +19,9 @@ namespace MazeSolver
         bool isSolving;
         bool isPaused;
         Coroutine solveCoroutine;
+        SolveSheet solveSheet;
+        bool sheetDivergent;
+        public SolveSheet CurrentSolveSheet => solveSheet;
 
         void Start()
         {
@@ -56,6 +59,12 @@ namespace MazeSolver
             solver = new MazeSolverEngine();
             solver.Initialize(currentGrid, currentN);
 
+            // Presolve before the audio session starts: it draws no random numbers, so
+            // the music seed taken in StartSession is unaffected.
+            solveSheet = SolvePresolver.Run(currentGrid, currentN);
+            sheetDivergent = false;
+            audioEngine.SetSolveSheet(solveSheet);
+
             isPaused = false;
             uiController.SetPauseText(false);
 
@@ -85,7 +94,21 @@ namespace MazeSolver
                     // Update intensity
                     int totalCells = currentN * currentN;
                     float explorationRatio = (float)solver.Visited.Count / totalCells;
-                    audioEngine.SubmitSnapshot(solver.ActiveCount, explorationRatio);
+
+                    // The live run should replay the sheet exactly; a mismatch means the
+                    // forecast can no longer be trusted.
+                    if (!sheetDivergent && solveSheet != null)
+                    {
+                        int step = solver.CurrentStep;
+                        if (step > solveSheet.TerminalStep
+                            || solveSheet.Active[step - 1] != solver.ActiveCount
+                            || solveSheet.VisitedCount[step - 1] != solver.Visited.Count)
+                        {
+                            sheetDivergent = true;
+                            audioEngine.ReportSheetDivergence();
+                        }
+                    }
+                    audioEngine.SubmitSnapshot(solver.ActiveCount, explorationRatio, solver.CurrentStep);
 
                     // Update solve tree
                     if (solveTreeRenderer)

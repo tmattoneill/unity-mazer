@@ -3,6 +3,11 @@ using UnityEngine;
 
 namespace MazeSolver
 {
+    // Traversal contract (relied on by presolve/solve-sheet equality): agents step in
+    // ascending id order; neighbors are inspected E,W,S,N (DR/DC order); a cell is claimed
+    // in Visited at inspection time, not on arrival; children spawn in remaining-neighbor
+    // order; the first agent to reach the goal ends the step. Changing any of these
+    // invalidates recorded solve sheets.
     public class MazeSolverEngine
     {
         static readonly int[] DR = { 0, 0, 1, -1 };
@@ -24,14 +29,22 @@ namespace MazeSolver
         int n;
         int nextAgentId;
         Vector2Int goal;
+        List<AgentData> agentsById;
+        readonly List<AgentData> stepAgents = new List<AgentData>();
+        bool analysisMode;
+        static readonly List<Vector2Int> EmptyPath = new List<Vector2Int>();
 
-        public void Initialize(byte[,] grid, int n)
+        // analysisMode runs the identical traversal without path bookkeeping or per-move
+        // events, so a headless presolve stays cheap while producing the same trace.
+        public void Initialize(byte[,] grid, int n, bool analysisMode = false)
         {
+            this.analysisMode = analysisMode;
             this.grid = grid;
             this.n = n;
             this.goal = new Vector2Int(n - 1, n - 1);
 
             Agents = new Dictionary<int, AgentData>();
+            agentsById = new List<AgentData>();
             Visited = new HashSet<long>();
             StepEvents = new List<SolverEvent>();
             IsSolved = false;
@@ -50,13 +63,15 @@ namespace MazeSolver
         void SpawnAgent(Vector2Int start, int parentId, List<Vector2Int> inheritedPath)
         {
             int id = nextAgentId++;
-            var agent = new AgentData(id, parentId, start, inheritedPath, CurrentStep);
+            var agent = new AgentData(id, parentId, start, analysisMode ? EmptyPath : inheritedPath, CurrentStep);
             Agents[id] = agent;
+            agentsById.Add(agent);
             TotalSpawned++;
 
             // Mark visited
             Visited.Add(Pack(start.x, start.y));
 
+            if (analysisMode) return;
             StepEvents.Add(new SolverEvent
             {
                 Type = SolverEventType.AgentSpawned,
@@ -74,15 +89,16 @@ namespace MazeSolver
 
             CurrentStep++;
 
-            // Collect active agents first (avoid modifying dict during iteration)
-            var activeAgents = new List<AgentData>();
-            foreach (var kvp in Agents)
+            // Snapshot active agents in ascending id order (children spawned this step
+            // must not step until the next one, and spawning must not disturb iteration)
+            stepAgents.Clear();
+            for (int i = 0; i < agentsById.Count; i++)
             {
-                if (kvp.Value.Status == AgentStatus.Active)
-                    activeAgents.Add(kvp.Value);
+                if (agentsById[i].Status == AgentStatus.Active)
+                    stepAgents.Add(agentsById[i]);
             }
 
-            foreach (var agent in activeAgents)
+            foreach (var agent in stepAgents)
             {
                 if (IsSolved) break;
 
@@ -92,7 +108,7 @@ namespace MazeSolver
                 {
                     agent.Status = AgentStatus.Dead;
                     agent.DeathStep = CurrentStep;
-                    StepEvents.Add(new SolverEvent
+                    if (!analysisMode) StepEvents.Add(new SolverEvent
                     {
                         Type = SolverEventType.AgentDied,
                         AgentId = agent.Id,
@@ -103,7 +119,7 @@ namespace MazeSolver
                 else
                 {
                     // Capture fork path before moving
-                    List<Vector2Int> forkPath = neighbors.Count > 1
+                    List<Vector2Int> forkPath = neighbors.Count > 1 && !analysisMode
                         ? new List<Vector2Int>(agent.FullPath)
                         : null;
 
@@ -116,14 +132,17 @@ namespace MazeSolver
                         agent.Status = AgentStatus.Solved;
                         agent.DeathStep = CurrentStep;
                         IsSolved = true;
-                        SolutionPath = new List<Vector2Int>(agent.FullPath);
-                        StepEvents.Add(new SolverEvent
+                        if (!analysisMode)
                         {
-                            Type = SolverEventType.SolutionFound,
-                            AgentId = agent.Id,
-                            Position = agent.Position,
-                            SolutionPath = SolutionPath
-                        });
+                            SolutionPath = new List<Vector2Int>(agent.FullPath);
+                            StepEvents.Add(new SolverEvent
+                            {
+                                Type = SolverEventType.SolutionFound,
+                                AgentId = agent.Id,
+                                Position = agent.Position,
+                                SolutionPath = SolutionPath
+                            });
+                        }
                         break;
                     }
 
@@ -142,11 +161,11 @@ namespace MazeSolver
             ActiveCount = 0;
             DeadCount = 0;
             SolvedCount = 0;
-            foreach (var kvp in Agents)
+            for (int i = 0; i < agentsById.Count; i++)
             {
-                if (kvp.Value.Status == AgentStatus.Active) ActiveCount++;
-                else if (kvp.Value.Status == AgentStatus.Dead) DeadCount++;
-                else if (kvp.Value.Status == AgentStatus.Solved) SolvedCount++;
+                if (agentsById[i].Status == AgentStatus.Active) ActiveCount++;
+                else if (agentsById[i].Status == AgentStatus.Dead) DeadCount++;
+                else if (agentsById[i].Status == AgentStatus.Solved) SolvedCount++;
             }
             HasActiveAgents = ActiveCount > 0;
         }
@@ -154,6 +173,7 @@ namespace MazeSolver
         void MoveAgent(AgentData agent, Vector2Int pos)
         {
             agent.Position = pos;
+            if (analysisMode) return;
             agent.FullPath.Add(pos);
             agent.OwnPath.Add(pos);
 

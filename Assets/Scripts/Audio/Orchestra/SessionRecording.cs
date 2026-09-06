@@ -26,7 +26,7 @@ namespace MazeSolver
             ring = new float[rate * 2 * bufferSeconds];
             Directory.CreateDirectory(directory);
             TemporaryPath = Path.Combine(directory, Guid.NewGuid().ToString("N") + ".wav");
-            FileStem = "Orchestra-" + DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") + "-" + MusicalKey.Name(settings).Replace(' ', '-') + "-seed-" + seed;
+            FileStem = "Orchestra-" + settings.Style + "-" + DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") + "-" + MusicalKey.Name(settings).Replace(' ', '-') + "-seed-" + seed;
             worker = new Thread(WriteRecording) { IsBackground = true, Name = "Orchestra WAV writer" };
             worker.Start();
         }

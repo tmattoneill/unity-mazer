@@ -32,6 +32,7 @@ namespace MazeSolver
         AudioClip silence;
         bool sessionActive, paused;
         int births, deaths;
+        public SolveConductor Conductor { get; } = new SolveConductor();
         readonly Queue<AudioCommand> pending = new Queue<AudioCommand>(32);
         const int MaxPending = 128;
 
@@ -142,12 +143,22 @@ namespace MazeSolver
                 else if (evt.Type == SolverEventType.AgentDied) deaths++;
             }
         }
-        public void SubmitSnapshot(int active, float coverage)
+        public void SetSolveSheet(SolveSheet sheet) => Conductor.SetSheet(sheet);
+        public void ReportSheetDivergence() => Conductor.MarkDivergent();
+
+        public void SubmitSnapshot(int active, float coverage) => SubmitSnapshot(active, coverage, 0);
+        public void SubmitSnapshot(int active, float coverage, int liveStep)
         {
+            if (liveStep > 0) Conductor.OnStep(liveStep, Time.unscaledTimeAsDouble);
             Send(new AudioCommand
             {
                 Type = AudioCommandType.Snapshot,
-                Snapshot = new MazeMusicSnapshot { Active = active, Coverage = coverage, Births = births, Deaths = deaths }
+                Snapshot = new MazeMusicSnapshot
+                {
+                    Active = active, Coverage = coverage, Births = births, Deaths = deaths,
+                    ForecastBeatsRemaining = Conductor.ForecastBeatsRemaining(Settings.Tempo),
+                    Progress = Conductor.Progress
+                }
             });
             births = deaths = 0;
         }
@@ -167,6 +178,7 @@ namespace MazeSolver
         public void SetPaused(bool value)
         {
             paused = value;
+            Conductor.OnPauseChanged();
             Send(new AudioCommand { Type = AudioCommandType.Pause, Value = value ? 1 : 0 });
             if (!paused && Settings.Mode == MusicMode.Soundtrack) soundtrackSource.UnPause();
         }
@@ -176,6 +188,7 @@ namespace MazeSolver
             value.Energy = Mathf.Clamp01(value.Energy); value.Density = Mathf.Clamp01(value.Density);
             value.Variation = Mathf.Clamp01(value.Variation); value.Tonic = Mathf.Clamp(value.Tonic, 0, 11);
             if (value.Tonality != Tonality.Major) value.Tonality = Tonality.Minor;
+            if ((int)value.Style < 0 || (int)value.Style > (int)MusicStyle.Classical) value.Style = MusicStyle.Cinematic;
             if (value.Mode == MusicMode.Soundtrack && Settings.Mode != MusicMode.Soundtrack) { PollRecording(); CancelRecording(); }
             value.Hall = Mathf.Clamp01(value.Hall); value.Tempo = Mathf.Clamp(value.Tempo, 92, 132);
             if (!OrchestraAvailable && value.Mode == MusicMode.Orchestra) value.Mode = MusicMode.Soundtrack;

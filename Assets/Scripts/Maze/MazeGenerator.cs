@@ -73,9 +73,12 @@ namespace MazeSolver
             return grid;
         }
 
-        public static byte[,] GenerateTargeted(int n, int targetPaths = 3, int maxAttempts = 5)
+        // seed uses System.Random only; UnityEngine.Random supplies the music seed and
+        // must stay untouched here so a seeded maze cannot perturb the score.
+        public static byte[,] GenerateTargeted(int n, int targetPaths = 3, int maxAttempts = 5, int? seed = null)
         {
             targetPaths = Mathf.Clamp(targetPaths, 1, 5);
+            var rng = seed.HasValue ? new System.Random(seed.Value) : null;
 
             // Base p_newest: 1→1.0, 2→0.96, 3→0.92, 4→0.88, 5→0.84
             float pNewest = 1.0f - (targetPaths - 1) * 0.04f;
@@ -90,7 +93,7 @@ namespace MazeSolver
 
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
-                var grid = Generate(n, pNewest);
+                var grid = Generate(n, pNewest, rng);
                 float concurrency = SimulateConcurrency(grid, n);
                 float distance = Mathf.Abs(concurrency - targetPaths);
 

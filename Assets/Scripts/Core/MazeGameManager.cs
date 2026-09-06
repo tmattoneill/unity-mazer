@@ -110,8 +110,8 @@ namespace MazeSolver
                     }
                     audioEngine.SubmitSnapshot(solver.ActiveCount, explorationRatio, solver.CurrentStep);
 
-                    // Update solve tree
-                    if (solveTreeRenderer)
+                    // Update solve tree, unless its panel is collapsed
+                    if (solveTreeRenderer && uiController.SolvePanelVisible)
                         solveTreeRenderer.RenderTree(solver);
 
                     // Update UI
@@ -173,19 +173,36 @@ namespace MazeSolver
             uiController.SetAgentCount(0, 0, 0);
         }
 
+        int currentGridSize;
+
+        // Called by the UI when the solve panel is shown or hidden mid-run.
+        public void RefreshSolvePanel()
+        {
+            if (currentGridSize > 0) FitCamera(currentGridSize);
+            if (solveTreeRenderer && solver != null && uiController.SolvePanelVisible)
+                solveTreeRenderer.RenderTree(solver);
+        }
+
         void FitCamera(int gridSize)
         {
+            currentGridSize = gridSize;
             var cam = Camera.main;
             if (cam == null) return;
-            // Sprite is centered at origin (pivot 0.5, 0.5), PPU=1
-            // Account for UI panel on left (~260px at screen width)
+            // Sprite is centered at origin (pivot 0.5, 0.5), PPU=1. Fit the maze into the
+            // pixels left free between the left control panel and the right solve panel.
             float aspect = (float)Screen.width / Screen.height;
-            float halfGrid = gridSize * 0.5f;
             float padding = 5f;
-            // Shift camera right to make room for UI panel on the left
-            float uiWorldWidth = (260f / Screen.width) * (halfGrid + padding) * 2f * aspect;
-            cam.orthographicSize = halfGrid + padding;
-            cam.transform.position = new Vector3(uiWorldWidth * 0.5f, 0f, -10f);
+            float world = gridSize + 2f * padding;
+            float leftPixels = 260f;
+            float rightPixels = uiController ? uiController.SolvePanelWidth : 0f;
+            float freeFraction = Mathf.Max(0.2f, (Screen.width - leftPixels - rightPixels) / Screen.width);
+            float size = Mathf.Max(world * 0.5f, world / (2f * aspect * freeFraction));
+            cam.orthographicSize = size;
+            // Center the maze in the free region.
+            float visibleWorldWidth = 2f * size * aspect;
+            float freeCenterPixels = leftPixels + (Screen.width - leftPixels - rightPixels) * 0.5f;
+            float offset = (freeCenterPixels - Screen.width * 0.5f) / Screen.width * visibleWorldWidth;
+            cam.transform.position = new Vector3(-offset, 0f, -10f);
         }
     }
 }

@@ -348,6 +348,33 @@ namespace MazeSolver.Editor
             uiController.vitalsSummaryText = summaryText;
             uiController.agentListText = agentListText;
 
+            // Collapse toggle for the whole solve pane. It lives on the canvas, not the
+            // panel, so it stays clickable while the panel is hidden.
+            uiController.solvePanel = rightPanelGO;
+            var toggleGO = CreateUIElement("SolvePanelToggle", canvasGO.transform);
+            var toggleRect = toggleGO.GetComponent<RectTransform>();
+            toggleRect.anchorMin = toggleRect.anchorMax = new Vector2(1, 1);
+            toggleRect.pivot = new Vector2(1, 1);
+            toggleRect.anchoredPosition = new Vector2(-4, -4);
+            toggleRect.sizeDelta = new Vector2(150, 24);
+            var toggleImg = toggleGO.AddComponent<Image>();
+            toggleImg.color = new Color(0.16f, 0.2f, 0.3f, 0.95f);
+            var toggleButton = toggleGO.AddComponent<Button>();
+            toggleButton.targetGraphic = toggleImg;
+            var toggleTextGO = CreateUIElement("Text", toggleGO.transform);
+            var toggleTextRect = toggleTextGO.GetComponent<RectTransform>();
+            toggleTextRect.anchorMin = Vector2.zero;
+            toggleTextRect.anchorMax = Vector2.one;
+            toggleTextRect.offsetMin = toggleTextRect.offsetMax = Vector2.zero;
+            var toggleText = toggleTextGO.AddComponent<Text>();
+            toggleText.text = "Hide Solve Tree ▶";
+            toggleText.fontSize = 11;
+            toggleText.alignment = TextAnchor.MiddleCenter;
+            toggleText.color = new Color(0.85f, 0.87f, 0.95f);
+            toggleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            uiController.solvePanelButton = toggleButton;
+            uiController.solvePanelButtonText = toggleText;
+
             var welcomeGO = CreateUIElement("Welcome", canvasGO.transform);
             var welcomeRect = welcomeGO.GetComponent<RectTransform>();
             welcomeRect.anchorMin = welcomeRect.anchorMax = new Vector2(0.424f, 0.55f);

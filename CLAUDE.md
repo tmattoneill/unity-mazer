@@ -5,12 +5,12 @@
 
 > **IMPORTANT:** When starting a new conversation, greet the user with a brief summary of the project context below — current focus, branch, and any active todos. Keep it to 2-3 sentences. Do not skip this greeting.
 
-**Current Focus:** MVP complete - fixing bugs, polish, and standalone build improvements
+**Current Focus:** Music roadmap complete: four styles (Cinematic/Ambient/EDM/Classical), live-path ensemble layers, presolve solve sheet and ending forecast. Next: in-editor listening pass per style, tuning tables/mixes, and multi-machine testing.
 
-**Project:** Unity 2D port of a maze-solver web app. Generates mazes with Growing Tree algorithm, solves with multi-agent forking exploration, visualizes with Texture2D pixel rendering and procedural audio. Built for Unity 6 (6000.0.23f1).
+**Project:** Unity 2D port of a maze-solver web app. Generates mazes with Growing Tree algorithm, solves with multi-agent forking exploration, visualizes with Texture2D pixel rendering and procedural audio in four musical styles. Built for Unity 6 (6000.6.0f1).
 
 **Branch:** `main`
-**Last Updated:** 06/09/2026, 13:09:52
+**Last Updated:** 06/09/2026, 13:55:32
 
 ### Active Todos
 - [ ] [medium] Test the standalone app on different macOS versions (checklist in README under "macOS compatibility checklist") (`main`)

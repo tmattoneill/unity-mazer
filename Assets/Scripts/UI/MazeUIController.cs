@@ -20,10 +20,17 @@ namespace MazeSolver
         public InputField seedInput;
         public Dropdown tonicDropdown, tonalityDropdown;
         public Dropdown styleDropdown;
+        public GameObject solvePanel;
+        public Button solvePanelButton;
+        public Text solvePanelButtonText;
         string lastRecordingStatus;
         float lastSpeedMs = -1;
         MazeGameManager gameManager;
         MusicSettings music = MusicSettings.Default;
+        // A saved scene without the panel reference behaves as before: panel shown.
+        public bool SolvePanelVisible => !solvePanel || solvePanel.activeSelf;
+        // Pixels the solve panel occupies on the right; the camera fit keeps the maze clear of it.
+        public float SolvePanelWidth => SolvePanelVisible ? 550f : 0f;
         public int MazeSize => Mathf.RoundToInt(mazeSizeSlider.value);
         public int TargetPaths => Mathf.RoundToInt(targetPathsSlider.value);
         public float SpeedMs => speedSlider.value;
@@ -87,6 +94,8 @@ namespace MazeSolver
             if (muteDroneButton) muteDroneButton.onClick.AddListener(() => { music.MusicMuted = !music.MusicMuted; ApplyMusic(); });
             if (muteSfxButton) muteSfxButton.onClick.AddListener(() => { music.AccentsMuted = !music.AccentsMuted; ApplyMusic(); });
             if (trackButton) trackButton.onClick.AddListener(() => { gameManager.AudioEngine.CycleTrack(); UpdateLabels(); });
+            if (solvePanelButton) solvePanelButton.onClick.AddListener(ToggleSolvePanel);
+            UpdateSolvePanelButton();
             ApplyMusic();
             SetStatus(gameManager.AudioEngine.OrchestraAvailable ? "Ready" : "Orchestra unavailable: " + gameManager.AudioEngine.Diagnostic);
             SetAgentCount(0, 0, 0);
@@ -145,6 +154,19 @@ namespace MazeSolver
             if (styleDropdown) styleDropdown.interactable = !recorded;
             if (seedModeButton) seedModeButton.interactable = !recorded;
             RefreshSeed();
+        }
+
+        void ToggleSolvePanel()
+        {
+            if (!solvePanel) return;
+            solvePanel.SetActive(!solvePanel.activeSelf);
+            UpdateSolvePanelButton();
+            gameManager.RefreshSolvePanel();
+        }
+
+        void UpdateSolvePanelButton()
+        {
+            if (solvePanelButtonText) solvePanelButtonText.text = SolvePanelVisible ? "Hide Solve Tree ▶" : "◀ Solve Tree";
         }
 
         public void RefreshSeed()

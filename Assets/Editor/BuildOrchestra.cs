@@ -20,6 +20,9 @@ namespace MazeSolver.Editor
                 rules = ScriptableObject.CreateInstance<OrchestralScoreRules>();
                 AssetDatabase.CreateAsset(rules, "Assets/Resources/Orchestra/ScoreRules.asset");
             }
+            var ambient = StyleRules("Ambient", new float[] { 0.5f, 0.7f, 0.4f, 0.75f }, null);
+            var edm = StyleRules("Edm", new float[] { 0.7f, 1f, 0.6f, 1f }, new[] { 0, 0, 3, 4, 0, 5, 4, 2 });
+            var classical = StyleRules("Classical", new float[] { 0.5f, 0.8f, 0.6f, 1f }, null);
             var bankAsset = AssetDatabase.LoadAssetAtPath<OrchestralInstrumentBank>("Assets/Resources/Orchestra/InstrumentBank.asset");
             if (!bankAsset)
             {
@@ -28,7 +31,7 @@ namespace MazeSolver.Editor
             }
             bankAsset.Manifest = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/Resources/Orchestra/manifest.json");
             // A ScriptableObject without a matching script asset works in-memory but fails in players.
-            foreach (ScriptableObject asset in new ScriptableObject[] { rules, bankAsset })
+            foreach (ScriptableObject asset in new ScriptableObject[] { rules, ambient, edm, classical, bankAsset })
             {
                 var serialized = new SerializedObject(asset);
                 serialized.FindProperty("m_Script").objectReferenceValue = MonoScript.FromScriptableObject(asset);
@@ -41,6 +44,64 @@ namespace MazeSolver.Editor
             CreateMazeSolverScene.Create();
             PresolveValidation.Run();
             Validate(rules, bankAsset);
+            ValidateStyles(new StyleRuleBundle(rules) { Ambient = ambient, EDM = edm, Classical = classical }, bankAsset);
+        }
+
+        static OrchestralScoreRules StyleRules(string name, float[] sectionEnergy, int[] motif)
+        {
+            string path = "Assets/Resources/Orchestra/" + name + "ScoreRules.asset";
+            var asset = AssetDatabase.LoadAssetAtPath<OrchestralScoreRules>(path);
+            if (!asset)
+            {
+                asset = ScriptableObject.CreateInstance<OrchestralScoreRules>();
+                asset.SectionEnergy = sectionEnergy;
+                if (motif != null) asset.MotifDegrees = motif;
+                AssetDatabase.CreateAsset(asset, path);
+            }
+            return asset;
+        }
+
+        // Every style must satisfy the renderer-level contract: seeded determinism,
+        // allocation-free rendering, a completing cadence and a clean stop.
+        public static void ValidateStyles(StyleRuleBundle bundle, OrchestralInstrumentBank bankAsset)
+        {
+            var bank = bankAsset.Load();
+            OrchestraFeatureValidation.RunStyles(bundle);
+            float[] a = new float[1024], b = new float[1024];
+            foreach (MusicStyle style in Enum.GetValues(typeof(MusicStyle)))
+            {
+                var settings = MusicSettings.Default;
+                settings.Style = style; settings.Density = 1; settings.Energy = 0.8f;
+                var first = new OrchestraRenderer(bank, bundle, 44100);
+                var second = new OrchestraRenderer(bank, bundle, 44100);
+                var start = new AudioCommand { Type = AudioCommandType.Start, Value = 431, Settings = settings };
+                first.Commands.TryWrite(start); second.Commands.TryWrite(start);
+                for (int block = 0; block < 500; block++)
+                {
+                    if (block % 25 == 0)
+                        first.Commands.TryWrite(new AudioCommand { Type = AudioCommandType.Snapshot,
+                            Snapshot = new MazeMusicSnapshot { Active = 4 + block / 25, Births = 1, Deaths = 1, Coverage = block / 500f } });
+                    if (block % 25 == 0)
+                        second.Commands.TryWrite(new AudioCommand { Type = AudioCommandType.Snapshot,
+                            Snapshot = new MazeMusicSnapshot { Active = 4 + block / 25, Births = 1, Deaths = 1, Coverage = block / 500f } });
+                    first.Render(a, 2); second.Render(b, 2);
+                    for (int i = 0; i < a.Length; i++)
+                    {
+                        Require(a[i] == b[i], style + " seeded audio differs");
+                        Require(!float.IsNaN(a[i]) && Math.Abs(a[i]) <= 0.891f, style + " output clipped or NaN");
+                    }
+                }
+                long before = GC.GetAllocatedBytesForCurrentThread();
+                for (int block = 0; block < 100; block++) first.Render(a, 2);
+                Require(GC.GetAllocatedBytesForCurrentThread() == before, style + " allocated inside render");
+                first.Commands.TryWrite(new AudioCommand { Type = AudioCommandType.Complete, Value = (int)SessionOutcome.Solved });
+                for (int block = 0; block < 900; block++) first.Render(a, 2);
+                Require(first.Finished, style + " cadence did not complete");
+                first.Commands.TryWrite(new AudioCommand { Type = AudioCommandType.Stop });
+                for (int block = 0; block < 400; block++) first.Render(a, 2);
+                Require(first.ActiveVoices == 0, style + " stop left voices playing");
+            }
+            Debug.Log("STYLE VALIDATION PASSED: 4 styles, deterministic, allocation-free, completing cadences, clean stops.");
         }
 
         static void Require(bool condition, string message)

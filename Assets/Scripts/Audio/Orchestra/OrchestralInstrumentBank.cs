@@ -52,6 +52,9 @@ namespace MazeSolver
             }
             for (int i = 0; i < present.Length; i++)
                 if (!present[i]) throw new InvalidOperationException("Missing instrument: " + (Instrument)i);
+            // Synth voices are generated, never loaded; the required-sample check above
+            // covers only the recorded orchestra.
+            SyntheticSampleBuilder.Append(bank);
             if (bank.MemoryBytes > 256L * 1024 * 1024)
                 throw new InvalidOperationException("Orchestra exceeds the 256 MiB decoded memory budget.");
             return bank;

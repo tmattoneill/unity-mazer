@@ -43,8 +43,22 @@ namespace MazeSolver
             public double Position, Rate;
             public int Remaining, Release, ReleaseLength, Priority;
             public float Gain, Left, Right, Envelope, AttackStep, LastLeft, LastRight, StealLeft, StealRight;
-            public bool Accent;
+            public float FilterAlpha, FilterSweep, FilterZL, FilterZR;
+            public bool Accent, FilterOn, Duckable;
         }
+
+        // Lookup tables replace the old ordinal `>= Timpani` percussion test, which the
+        // appended synth instruments would otherwise break.
+        static readonly bool[] PercussionTable = BuildFlags(Instrument.Timpani, Instrument.BassDrum, Instrument.Snare,
+            Instrument.Cymbal, Instrument.Kick, Instrument.HatClosed, Instrument.HatOpen, Instrument.Clap);
+        static readonly bool[] DuckableTable = BuildFlags(Instrument.SynthBass, Instrument.SynthPad, Instrument.HatOpen);
+        static bool[] BuildFlags(params Instrument[] members)
+        {
+            var flags = new bool[20];
+            foreach (var member in members) flags[(int)member] = true;
+            return flags;
+        }
+        static bool IsPercussion(Instrument instrument) => PercussionTable[(int)instrument];
         readonly Voice[] voices = new Voice[96];
         readonly InstrumentBankData bank;
         readonly IStyleComposer[] composers;
@@ -58,6 +72,9 @@ namespace MazeSolver
         int noteCount, nextNote, beatFrame, beatLength;
         float transportGain, orchestraGain = 1, musicGain, accentGain, limiterGain = 1;
         float releaseCoefficient;
+        // Kick-triggered ducking of the duckable synth voices.
+        float duckTarget, duckCurrent;
+        readonly float duckAttack, duckRelease;
         int activeVoices;
         SessionRecording recording;
         public int ActiveVoices => Volatile.Read(ref activeVoices);
@@ -69,6 +86,9 @@ namespace MazeSolver
         public AudioCommandQueue Commands => commands;
 
         public OrchestraRenderer(InstrumentBankData bank, OrchestralScoreRules rules, int sampleRate)
+            : this(bank, new StyleRuleBundle(rules), sampleRate) { }
+
+        public OrchestraRenderer(InstrumentBankData bank, StyleRuleBundle rules, int sampleRate)
         {
             this.bank = bank;
             this.sampleRate = sampleRate;
@@ -76,6 +96,8 @@ namespace MazeSolver
             score = composers[(int)MusicStyle.Cinematic];
             hall = new StereoHall(sampleRate);
             releaseCoefficient = 1f / (sampleRate * 0.025f);
+            duckAttack = 1f / (sampleRate * 0.005f);
+            duckRelease = (float)Math.Exp(-1.0 / (sampleRate * 0.18));
         }
 
         void HandleCommands()
@@ -88,6 +110,7 @@ namespace MazeSolver
                         recording?.Cancel(); recording = command.Recording;
                         Array.Clear(voices, 0, voices.Length); hall.Clear();
                         transportGain = musicGain = accentGain = 0; limiterGain = 1;
+                        duckTarget = duckCurrent = 0;
                         settings = command.Settings;
                         int style = (int)settings.Style;
                         score = composers[style >= 0 && style < composers.Length ? style : 0];
@@ -161,24 +184,46 @@ namespace MazeSolver
             if (old.Sample != null) StolenVoices++;
             float pan = Pan(note.Instrument);
             bool shortNote = note.Instrument == Instrument.ViolinShort || note.Instrument == Instrument.CelloShort || note.Instrument == Instrument.Trumpet || note.Instrument == Instrument.Bassoon;
-            bool percussion = note.Instrument >= Instrument.Timpani;
+            bool percussion = IsPercussion(note.Instrument);
+            if (note.Instrument == Instrument.Kick) duckTarget = 0.6f;
             float release = percussion ? 0.6f : shortNote ? 0.10f : 0.28f;
+            int releaseFrames = note.ReleaseBeats > 0 ? (int)(note.ReleaseBeats * beatLength) : (int)(sampleRate * release);
+            if (releaseFrames < 1) releaseFrames = 1;
             voices[slot] = new Voice
             {
                 Sample = selected, Rate = Math.Pow(2, (note.Pitch - selected.Root - selected.TuningCents / 100.0) / 12.0) * selected.Rate / sampleRate,
-                Remaining = (int)(note.DurationBeats * beatLength), ReleaseLength = (int)(sampleRate * release),
-                Release = (int)(sampleRate * release), Gain = note.Velocity * selected.Gain * InstrumentGain(note.Instrument),
+                Remaining = (int)(note.DurationBeats * beatLength), ReleaseLength = releaseFrames,
+                Release = releaseFrames, Gain = note.Velocity * selected.Gain * InstrumentGain(note.Instrument),
                 Left = (float)Math.Sqrt((1 - pan) * 0.5), Right = (float)Math.Sqrt((1 + pan) * 0.5),
                 AttackStep = 1f / (sampleRate * (percussion || shortNote ? 0.002f : 0.018f)),
                 Priority = note.Priority, Accent = note.Accent,
-                StealLeft = old.LastLeft, StealRight = old.LastRight
+                StealLeft = old.LastLeft, StealRight = old.LastRight,
+                FilterOn = note.FilterCutoff > 0,
+                FilterAlpha = note.FilterCutoff,
+                FilterSweep = beatLength > 0 ? note.FilterSweep / beatLength : 0,
+                Duckable = DuckableTable[(int)note.Instrument]
             };
+        }
+
+        static float ReverbSend(Instrument instrument)
+        {
+            switch (instrument)
+            {
+                // Synths stay dry for a controlled low end; the pad alone takes some hall.
+                case Instrument.Kick: case Instrument.SynthBass: return 0.05f;
+                case Instrument.SynthLead: case Instrument.HatClosed: case Instrument.HatOpen: case Instrument.Clap: return 0.18f;
+                case Instrument.SynthPad: return 0.45f;
+                default: return IsPercussion(instrument) ? 0.22f : 0.7f;
+            }
         }
 
         static float Pan(Instrument instrument)
         {
             switch (instrument)
             {
+                case Instrument.HatClosed: return -0.25f;
+                case Instrument.HatOpen: return 0.25f;
+                case Instrument.Clap: return 0.1f;
                 case Instrument.ViolinLong: case Instrument.ViolinShort: return -0.42f;
                 case Instrument.CelloLong: case Instrument.CelloShort: return 0.28f;
                 case Instrument.Horn: return -0.2f;
@@ -205,6 +250,13 @@ namespace MazeSolver
                 case Instrument.Timpani: return 0.52f;
                 case Instrument.BassDrum: return 0.64f;
                 case Instrument.Snare: return 0.30f;
+                case Instrument.Kick: return 0.72f;
+                case Instrument.SynthBass: return 0.55f;
+                case Instrument.SynthLead: return 0.38f;
+                case Instrument.SynthPad: return 0.3f;
+                case Instrument.HatClosed: return 0.2f;
+                case Instrument.HatOpen: return 0.18f;
+                case Instrument.Clap: return 0.34f;
                 default: return 0.27f;
             }
         }
@@ -233,6 +285,9 @@ namespace MazeSolver
                     beatFrame++;
                 }
                 float left = 0, right = 0, sendLeft = 0, sendRight = 0;
+                duckTarget *= duckRelease;
+                duckCurrent += (duckTarget - duckCurrent) * Math.Min(1f, duckAttack);
+                float duckGain = 1 - duckCurrent;
                 live = 0;
                 for (int index = 0; index < voices.Length; index++)
                 {
@@ -262,13 +317,21 @@ namespace MazeSolver
                         l += (pcm[loopPosition * c] - l) * blend;
                         rv += (pcm[loopPosition * c + (c > 1 ? 1 : 0)] - rv) * blend;
                     }
+                    if (voice.FilterOn)
+                    {
+                        voice.FilterAlpha = Math.Max(0.02f, Math.Min(1f, voice.FilterAlpha + voice.FilterSweep));
+                        voice.FilterZL += (l - voice.FilterZL) * voice.FilterAlpha;
+                        voice.FilterZR += (rv - voice.FilterZR) * voice.FilterAlpha;
+                        l = voice.FilterZL; rv = voice.FilterZR;
+                    }
                     float gain = envelope * voice.Gain * (voice.Accent ? accentGain : musicGain);
+                    if (voice.Duckable) gain *= duckGain;
                     l = l * gain * voice.Left + voice.StealLeft;
                     rv = rv * gain * voice.Right + voice.StealRight;
                     voice.StealLeft *= 0.97f; voice.StealRight *= 0.97f;
                     voice.LastLeft = l; voice.LastRight = rv;
                     left += l; right += rv;
-                    float send = voice.Sample.Instrument >= Instrument.Timpani ? 0.22f : 0.7f;
+                    float send = ReverbSend(voice.Sample.Instrument);
                     sendLeft += l * send; sendRight += rv * send;
                     voice.Position += voice.Rate;
                 }

@@ -8,6 +8,7 @@ namespace MazeSolver
     public sealed class MazeAudioEngine : MonoBehaviour
     {
         public OrchestralScoreRules scoreRules;
+        public OrchestralScoreRules ambientRules, edmRules, classicalRules;
         public OrchestralInstrumentBank instrumentBank;
         public AudioClip[] soundtrackClips;
         public MusicSettings Settings { get; private set; } = MusicSettings.Default;
@@ -42,12 +43,16 @@ namespace MazeSolver
             var legacy = GetComponent<AudioSource>();
             if (legacy) { legacy.Stop(); legacy.enabled = false; }
             if (!scoreRules) scoreRules = Resources.Load<OrchestralScoreRules>("Orchestra/ScoreRules");
+            if (!ambientRules) ambientRules = Resources.Load<OrchestralScoreRules>("Orchestra/AmbientScoreRules");
+            if (!edmRules) edmRules = Resources.Load<OrchestralScoreRules>("Orchestra/EdmScoreRules");
+            if (!classicalRules) classicalRules = Resources.Load<OrchestralScoreRules>("Orchestra/ClassicalScoreRules");
             if (!instrumentBank) instrumentBank = Resources.Load<OrchestralInstrumentBank>("Orchestra/InstrumentBank");
             try
             {
                 if (!scoreRules || !instrumentBank) throw new InvalidOperationException("Orchestral score or instrument bank asset is missing.");
                 bank = instrumentBank.Load();
-                renderer = new OrchestraRenderer(bank, scoreRules, AudioSettings.outputSampleRate);
+                var ruleBundle = new StyleRuleBundle(scoreRules) { Ambient = ambientRules, EDM = edmRules, Classical = classicalRules };
+                renderer = new OrchestraRenderer(bank, ruleBundle, AudioSettings.outputSampleRate);
                 var child = new GameObject("Orchestral sampler");
                 child.transform.SetParent(transform, false);
                 orchestraSource = child.AddComponent<AudioSource>();
@@ -294,7 +299,9 @@ namespace MazeSolver
             PollRecording(); CancelRecording();
             orchestraSource.Stop();
             pending.Clear(); sessionActive = false; paused = false;
-            renderer = new OrchestraRenderer(bank, scoreRules, AudioSettings.outputSampleRate);
+            renderer = new OrchestraRenderer(bank,
+                new StyleRuleBundle(scoreRules) { Ambient = ambientRules, EDM = edmRules, Classical = classicalRules },
+                AudioSettings.outputSampleRate);
             output.Renderer = renderer;
             orchestraSource.Play();
         }

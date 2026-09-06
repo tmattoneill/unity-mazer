@@ -78,6 +78,82 @@ namespace MazeSolver.Editor
             Debug.Log("ORCHESTRA FEATURES PASSED: 20 distinct seeded compositions, 24 keys, both cadences, phrase variation, returning theme, pending key, 24-bit WAV capture, pause, tail, cancellation, overflow and file errors.");
         }
 
+        // Style-specific content contracts, checked at the composer level.
+        public static void RunStyles(StyleRuleBundle bundle)
+        {
+            var settings = MusicSettings.Default;
+            settings.Density = 1;
+            var notes = new ScoreNote[64];
+
+            var ambient = new AmbientComposer(bundle.Ambient ? bundle.Ambient : bundle.Cinematic);
+            ambient.Reset(431, settings);
+            float totalDuration = 0; int sustained = 0;
+            for (int beat = 0; beat < 256; beat++)
+            {
+                ambient.Observe(new MazeMusicSnapshot { Active = 3 + beat / 16 });
+                int count = ambient.ComposeBeat(settings, notes);
+                for (int i = 0; i < count; i++)
+                {
+                    var instrument = notes[i].Instrument;
+                    Require(instrument != Instrument.Snare && instrument != Instrument.BassDrum && instrument != Instrument.Kick,
+                        "Ambient used beat percussion");
+                    Require(notes[i].OffsetBeats >= 0 && notes[i].OffsetBeats < 1, "Ambient note timing invalid");
+                    if (!notes[i].Accent) { totalDuration += notes[i].DurationBeats; sustained++; }
+                }
+            }
+            Require(sustained > 0 && totalDuration / sustained >= 1.5f, "Ambient notes are not sustained");
+            ambient.Complete(SessionOutcome.Solved);
+            for (int beat = 0; beat < 13; beat++) ambient.ComposeBeat(settings, notes);
+            Require(ambient.Finished, "Ambient ending did not finish");
+            Require(ambient.Root % 12 == settings.Tonic % 12, "Ambient did not resolve home");
+
+            var edm = new EdmComposer(bundle.EDM ? bundle.EDM : bundle.Cinematic);
+            edm.Reset(431, settings);
+            for (int beat = 0; beat < 256; beat++)
+            {
+                edm.Observe(new MazeMusicSnapshot { Active = 8 });
+                string section = edm.Section;
+                int count = edm.ComposeBeat(settings, notes);
+                bool kick = false;
+                for (int i = 0; i < count; i++)
+                {
+                    kick |= notes[i].Instrument == Instrument.Kick;
+                    Require(notes[i].Instrument != Instrument.Snare, "EDM used the orchestral snare");
+                    Require(notes[i].OffsetBeats >= 0 && notes[i].OffsetBeats < 1, "EDM note timing invalid");
+                }
+                Require(kick == (section != "Breakdown"), "EDM kick pattern wrong during " + section);
+            }
+            edm.Complete(SessionOutcome.Solved);
+            for (int beat = 0; beat < 9; beat++) edm.ComposeBeat(settings, notes);
+            Require(edm.Finished, "EDM ending did not finish");
+
+            var classical = new ClassicalComposer(bundle.Classical ? bundle.Classical : bundle.Cinematic);
+            classical.Reset(431, settings);
+            for (int beat = 0; beat < 256; beat++)
+            {
+                classical.Observe(new MazeMusicSnapshot { Active = 6 });
+                int bar = beat / 4;
+                int count = classical.ComposeBeat(settings, notes);
+                Require(count > 0, "Classical produced an empty beat");
+                for (int i = 0; i < count; i++)
+                {
+                    var instrument = notes[i].Instrument;
+                    Require(instrument < Instrument.Kick, "Classical used a synth voice");
+                    if (instrument >= Instrument.Timpani)
+                    {
+                        Require(instrument == Instrument.Timpani, "Classical used non-timpani percussion");
+                        Require(bar % 4 == 3, "Classical timpani away from a cadence");
+                    }
+                }
+            }
+            classical.Complete(SessionOutcome.Solved);
+            for (int beat = 0; beat < 11; beat++) classical.ComposeBeat(settings, notes);
+            Require(classical.Finished, "Classical ending did not finish");
+            Require(classical.Root % 12 == settings.Tonic % 12, "Classical cadence did not resolve to the tonic");
+
+            Debug.Log("STYLE FEATURES PASSED: Ambient texture rules, EDM kick/breakdown pattern, Classical scoring rules, all endings resolve.");
+        }
+
         static ulong Signature(OrchestralScoreRules rules, MusicSettings settings, int seed)
         {
             var score = new CinematicComposer(rules); score.Reset(seed, settings);

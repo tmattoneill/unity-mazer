@@ -104,7 +104,8 @@ namespace MazeSolver
         }
         protected int NoteCount => count;
 
-        protected void Add(Instrument instrument, int pitch, float offset, float length, float velocity, int priority = 2, bool accent = false)
+        protected void Add(Instrument instrument, int pitch, float offset, float length, float velocity, int priority = 2, bool accent = false,
+            float releaseBeats = 0, float filterCutoff = 0, float filterSweep = 0)
         {
             if (count >= output.Length) return;
             switch (instrument)
@@ -117,12 +118,16 @@ namespace MazeSolver
                 case Instrument.Flute: pitch = Place(pitch, 60, 86); break;
                 case Instrument.Bassoon: pitch = Place(pitch, 34, 72); break;
                 case Instrument.Timpani: pitch = Place(pitch, 40, 57); break;
+                case Instrument.SynthBass: pitch = Place(pitch, 28, 52); break;
+                case Instrument.SynthLead: pitch = Place(pitch, 48, 84); break;
+                case Instrument.SynthPad: pitch = Place(pitch, 43, 76); break;
             }
             output[count++] = new ScoreNote
             {
                 Instrument = instrument, Pitch = pitch, OffsetBeats = offset,
                 DurationBeats = length, Velocity = Math.Max(0.05f, Math.Min(1f, velocity)),
-                Alternate = Next(2) + 1, Priority = priority, Accent = accent
+                Alternate = Next(2) + 1, Priority = priority, Accent = accent,
+                ReleaseBeats = releaseBeats, FilterCutoff = filterCutoff, FilterSweep = filterSweep
             };
         }
     }

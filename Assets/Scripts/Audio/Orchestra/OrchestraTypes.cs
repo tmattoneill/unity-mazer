@@ -5,7 +5,14 @@ namespace MazeSolver
 {
     public enum MusicMode { Orchestra, Soundtrack }
     public enum MusicStyle { Cinematic, Ambient, EDM, Classical }
-    public enum Instrument { ViolinShort, ViolinLong, CelloShort, CelloLong, Bass, Horn, Trumpet, Flute, Bassoon, Timpani, BassDrum, Snare, Cymbal }
+    // Values through Cymbal are the recorded orchestra and must keep their order (the
+    // sample manifest and bank check depend on it). Synth voices are appended only; their
+    // PCM is generated at load, never loaded from assets.
+    public enum Instrument
+    {
+        ViolinShort, ViolinLong, CelloShort, CelloLong, Bass, Horn, Trumpet, Flute, Bassoon, Timpani, BassDrum, Snare, Cymbal,
+        Kick, SynthBass, SynthLead, SynthPad, HatClosed, HatOpen, Clap
+    }
     public enum SessionOutcome { Solved, Exhausted }
     public enum Tonality { Minor, Major }
 
@@ -46,6 +53,11 @@ namespace MazeSolver
         public Instrument Instrument;
         public int Pitch, Alternate, Priority;
         public float Velocity, OffsetBeats, DurationBeats;
+        // Optional release-time override in beats; 0 keeps the instrument default.
+        public float ReleaseBeats;
+        // Optional one-pole lowpass: cutoff is the filter coefficient (0 bypasses the
+        // filter entirely), sweep is the coefficient change per beat.
+        public float FilterCutoff, FilterSweep;
         public bool Accent;
     }
 

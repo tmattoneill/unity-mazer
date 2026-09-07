@@ -49,9 +49,9 @@ run_launch() {
     return 1
   }
 
-  print "unix_time\trss_kib" > "$rss_path"
+  printf 'unix_time\trss_kib\n' > "$rss_path"
   while kill -0 "$player_pid" 2>/dev/null; do
-    print "$(date +%s)\t$(ps -o rss= -p "$player_pid" | tr -d ' ')" >> "$rss_path"
+    printf '%s\t%s\n' "$(date +%s)" "$(ps -o rss= -p "$player_pid" | tr -d ' ')" >> "$rss_path"
     if (( sample % 2 == 0 )); then
       /usr/bin/vmmap -summary "$player_pid" > "$report_dir/$name-vmmap-$sample.txt" 2>&1 || true
     fi
@@ -90,7 +90,7 @@ if (( ${#vmmap_files} == 0 )); then
   exit 2
 fi
 
-physical_summary=$(awk '
+if ! physical_summary=$(awk '
   function mib(value) {
     unit = substr(value, length(value), 1)
     number = substr(value, 1, length(value) - 1) + 0
@@ -103,11 +103,23 @@ physical_summary=$(awk '
     current = mib($3)
     if (current > peak) peak = current
     final = current
+    samples++
   }
-  END { printf "%.1f %.1f", peak, final }
-' "${vmmap_files[@]}")
+  /^Physical footprint \(peak\):/ {
+    recordedPeak = mib($4)
+    if (recordedPeak > peak) peak = recordedPeak
+    peakSamples++
+  }
+  END {
+    if (samples == 0 || peakSamples == 0 || peak <= 0 || final <= 0) exit 1
+    printf "%.1f %.1f", peak, final
+  }
+' "${vmmap_files[@]}"); then
+  print -u2 "The full audit produced no valid physical-footprint or peak measurements"
+  exit 2
+fi
 read peak_physical_mib final_physical_mib <<< "$physical_summary"
-printf 'Peak sampled physical footprint: %.1f MiB\n' "$peak_physical_mib"
+printf 'Peak physical footprint: %.1f MiB\n' "$peak_physical_mib"
 printf 'Final sampled physical footprint: %.1f MiB\n' "$final_physical_mib"
 if (( peak_physical_mib > 1024.0 )); then
   print -u2 "Peak physical footprint exceeded 1.0 GiB"

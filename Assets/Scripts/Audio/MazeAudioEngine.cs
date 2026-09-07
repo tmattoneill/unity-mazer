@@ -327,7 +327,7 @@ namespace MazeSolver
             output.Renderer = renderer;
             orchestraSource.Play();
         }
-#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         public void RebuildAudioRendererForAudit() => OnAudioConfigurationChanged(false);
 #endif
         void OnDestroy()

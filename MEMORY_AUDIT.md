@@ -10,7 +10,30 @@ Both bugs are fixed. The renderer now destroys its runtime assets on replacement
 
 The nine recorded soundtracks previously used Decompress On Load. They now stream from disk, load in the background and do not preload. Changing tracks stops and unloads the old clip. The 181.2 MiB procedural orchestra sample bank remains resident by design because the audio callback needs immediate access to its PCM.
 
-Post-fix player figures remain pending until `BuildMacMemoryAudit` and the full audit wrapper complete. Do not treat the limits below as measured results.
+The full post-fix macOS audit completed on 7 September. **Lifetime checks passed; the overall physical-memory gate failed.** Five cold launches produced passing reports and no new UnityMazer crash report. The full run passed 100 maze replacements, runtime renderer teardown, 50 recording cancellations, soundtrack cycling and 25 audio renderer rebuilds.
+
+The run used Unity 6000.6.0f1, a 24 GB MacBook Air M4, macOS 26.6.2 and the original 3420 by 2146 Retina Metal surface. Reports and process samples are in `Builds/MemoryAudit/reports/20260907-151905/`. The full run reached its final checkpoint at 31.95 seconds, then held a three-second sampling window.
+
+| Check | Measured result | Result |
+| --- | --- | --- |
+| Maze-cycle managed drift after warm-up | +0.043 MiB | Pass, below 16 MiB |
+| Maze-cycle Unity allocation drift | +0.001 MiB | Pass, below 16 MiB |
+| Recording-cycle settled managed drift | -1.504 MiB | Pass |
+| Texture / sprite counts after maze warm-up | 26 / 7 throughout | Pass |
+| Final workers / pending recordings / temporary WAVs / loaded soundtracks | 0 / 0 / 0 / 0 | Pass |
+| Final managed heap | 185.605 MiB | Includes the resident sample bank |
+| Peak sampled RSS in the full run | 515.2 MiB | Informational |
+| Final sampled physical footprint | 833.3 MiB | Fail, target below 700 MiB |
+| Full-run recorded physical peak | About 1.5 GiB | Fail, wrapper limit 1 GiB |
+| Cold-launch recorded physical peaks | About 1.2–1.6 GiB | Fail, startup target below 1 GiB |
+
+Peak figures come from macOS's rounded `vmmap` peak field. The full-run peak includes the stress scenarios, so it must not be described as a startup-only peak. The earlier baseline used a separate build and run; these measurements establish the fixed build's result, not a controlled performance comparison.
+
+Separate editor checks passed for zero managed allocation in audio rendering, deterministic output, pause, cadence completion and clean stops across all four styles. Use **Tools > Orchestra > Validate audio memory** to repeat those checks without rebuilding the scene.
+
+The final `vmmap` sample still attributes about 170.7 MiB resident memory to IOAccelerator graphics, 85.0 MiB to IOSurface and 133.2 MiB to owned unmapped graphics memory. The next measurements should test Metal framebuffer-only mode and then the Low standalone quality preset, retaining Retina initially. These settings have not yet been changed or measured.
+
+The resumed run also repaired the audit harness: use `DEVELOPMENT_BUILD` to include the player runner, keep audit sessions running when unfocused, log checkpoints, allow a final sampling window, emit actual tab-separated RSS data, and reject missing physical-footprint readings. Edit-mode validation invokes cleanup explicitly; the player separately verifies Unity's real teardown callback. Earlier report directories contain incomplete diagnostic attempts and are excluded from the results above.
 
 ## Baseline
 

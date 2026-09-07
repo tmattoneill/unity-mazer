@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
@@ -7,6 +8,21 @@ namespace MazeSolver.Editor
 {
     public static class MemorySafetyValidation
     {
+        [MenuItem("Tools/Orchestra/Validate audio memory")]
+        public static void ValidateAudioMemory()
+        {
+            var rules = Resources.Load<OrchestralScoreRules>("Orchestra/ScoreRules");
+            var bank = Resources.Load<OrchestralInstrumentBank>("Orchestra/InstrumentBank");
+            Require(rules && bank, "missing orchestra rules or instrument bank");
+            BuildOrchestra.Validate(rules, bank);
+            BuildOrchestra.ValidateStyles(new StyleRuleBundle(rules)
+            {
+                Ambient = Resources.Load<OrchestralScoreRules>("Orchestra/AmbientScoreRules"),
+                EDM = Resources.Load<OrchestralScoreRules>("Orchestra/EdmScoreRules"),
+                Classical = Resources.Load<OrchestralScoreRules>("Orchestra/ClassicalScoreRules")
+            }, bank);
+        }
+
         [MenuItem("Tools/Orchestra/Validate memory safety")]
         public static void Run()
         {
@@ -43,6 +59,11 @@ namespace MazeSolver.Editor
             Require(!firstSprite && !firstTexture, "maze renderer retained replaced native assets");
             var finalSprite = spriteRenderer.sprite;
             var finalTexture = finalSprite.texture;
+            // Runtime callbacks do not run for this edit-mode fixture. The player audit
+            // separately destroys a live component to verify Unity invokes its teardown.
+            var teardown = typeof(MazeRenderer).GetMethod("OnDestroy", BindingFlags.Instance | BindingFlags.NonPublic);
+            Require(teardown != null, "maze renderer has no teardown callback");
+            teardown.Invoke(renderer, null);
             UnityEngine.Object.DestroyImmediate(host);
             Require(!finalSprite && !finalTexture, "maze renderer retained native assets after teardown");
         }

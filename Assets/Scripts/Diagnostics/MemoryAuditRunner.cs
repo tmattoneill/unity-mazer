@@ -1,4 +1,4 @@
-#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -57,6 +57,7 @@ namespace MazeSolver
         {
             string[] arguments = Environment.GetCommandLineArgs();
             if (!HasArgument(arguments, "--memory-audit") && !HasArgument(arguments, "--memory-audit-smoke")) return;
+            Application.runInBackground = true;
             var host = new GameObject("Memory audit runner");
             DontDestroyOnLoad(host);
             host.AddComponent<MemoryAuditRunner>();
@@ -96,6 +97,17 @@ namespace MazeSolver
                 Finish();
                 yield break;
             }
+
+            var rendererHost = new GameObject("Runtime renderer teardown validation");
+            var testRenderer = rendererHost.AddComponent<MazeRenderer>();
+            testRenderer.Initialize(3, new byte[3, 3]);
+            var testSprite = rendererHost.GetComponent<SpriteRenderer>().sprite;
+            var testTexture = testSprite.texture;
+            yield return null;
+            Destroy(rendererHost);
+            yield return null;
+            yield return null;
+            if (testSprite || testTexture) failures.Add("Maze renderer retained native assets after runtime teardown.");
 
             // Establish the one retained display texture before measuring replacement drift.
             manager.uiController.mazeSizeSlider.SetValueWithoutNotify(100);
@@ -162,6 +174,8 @@ namespace MazeSolver
 
             manager.ResetMaze();
             yield return Collect("final");
+            // Leave a settled sampling window for the external process-memory collector.
+            yield return new WaitForSecondsRealtime(3f);
             Finish();
         }
 
@@ -175,6 +189,7 @@ namespace MazeSolver
             GC.Collect();
             yield return null;
             report.checkpoints.Add(Capture(name));
+            Debug.Log("MEMORY AUDIT CHECKPOINT: " + name);
         }
 
         MemoryCheckpoint Capture(string name)

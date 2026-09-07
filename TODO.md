@@ -4,7 +4,7 @@ The code roadmap is complete on `main`. The remaining work is listening, platfor
 
 ## Next
 
-- [ ] Build and run the new macOS memory audit, then enter the post-fix RSS, physical-footprint and drift results in `MEMORY_AUDIT.md`. The static fixes and audit harness are complete; the first instrumented player run remains.
+- [ ] Reduce the compiled player's physical memory use. The macOS audit passed lifetime and audio-allocation checks but measured 833.3 MiB settled footprint and about 1.5 GiB full-run peak. Test Metal framebuffer-only mode, then Low quality, retaining Retina initially; rerun the audit. Results are in `MEMORY_AUDIT.md`.
 - [ ] Listen to Cinematic, Ambient, EDM and Classical in the Unity editor across sparse, growing, crowded and collapsing mazes. Tune score tables, voice levels, reverb, low end, transitions and cadence timing where needed.
 - [ ] After tuning, run `BuildOrchestra.PrepareAndValidate` and keep all presolve, composer, renderer, recording and timing checks green. Review the four generated comparison WAVs as part of the pass.
 - [ ] Test the macOS standalone app on more than one machine or macOS version. Use the checklist in `README.md` and record the OS, CPU and audio device for each result.
@@ -16,6 +16,7 @@ The code roadmap is complete on `main`. The remaining work is listening, platfor
 
 ## Completed on `main`
 
+- [x] Built and ran the macOS memory audit on 7 September; recorded five passing cold launches, stable object counts, recording cleanup and the failed physical-memory gates in `MEMORY_AUDIT.md`.
 - [x] Fixed runtime maze texture and sprite leaks, stale recording references in the audio queue, soundtrack decode residency and several hot-path allocations. Added explicit recording and renderer cleanup plus a Development-build memory regression runner.
 - [x] Added Cinematic, Ambient, EDM and Classical as distinct procedural styles while keeping recorded soundtracks separate.
 - [x] Made live active-path counts drive bounded ensemble layers with smoothing, hysteresis and Density as the ceiling.

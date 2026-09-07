@@ -10,7 +10,7 @@
 **Project:** Unity 2D port of a maze-solver web app. Generates mazes with Growing Tree algorithm, solves with multi-agent forking exploration, visualizes with Texture2D pixel rendering and procedural audio in four musical styles. Built for Unity 6 (6000.6.0f1).
 
 **Branch:** `main`
-**Last Updated:** 06/09/2026, 13:55:32
+**Last Updated:** 07/09/2026, 08:15:48
 
 ### Active Todos
 - [ ] [medium] Test the standalone app on different macOS versions (checklist in README under "macOS compatibility checklist") (`main`)

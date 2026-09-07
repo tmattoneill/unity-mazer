@@ -30,9 +30,22 @@ namespace MazeSolver
         {
             if (read == Volatile.Read(ref write)) { command = default; return false; }
             command = entries[read];
+            entries[read] = default;
             Volatile.Write(ref read, (read + 1) % entries.Length);
             return true;
         }
+#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
+        public int RetainedRecordingCount
+        {
+            get
+            {
+                int count = 0;
+                for (int i = 0; i < entries.Length; i++)
+                    if (entries[i].Recording != null) count++;
+                return count;
+            }
+        }
+#endif
     }
 
     public sealed class OrchestraRenderer

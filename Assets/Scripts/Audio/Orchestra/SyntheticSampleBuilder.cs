@@ -129,9 +129,9 @@ namespace MazeSolver
                 previous = white;
                 float t = i / (float)Rate;
                 // Three quick bursts, then the tail.
-                float envelope = 0;
-                foreach (float burst in new[] { 0f, 0.012f, 0.026f })
-                    if (t >= burst) envelope = Math.Max(envelope, (float)Math.Exp(-(t - burst) * 90));
+                float envelope = (float)Math.Exp(-t * 90);
+                if (t >= 0.012f) envelope = Math.Max(envelope, (float)Math.Exp(-(t - 0.012f) * 90));
+                if (t >= 0.026f) envelope = Math.Max(envelope, (float)Math.Exp(-(t - 0.026f) * 90));
                 envelope = Math.Max(envelope, t >= 0.03f ? (float)Math.Exp(-(t - 0.03f) * 26) * 0.7f : 0);
                 pcm[i] = filtered * envelope;
             }

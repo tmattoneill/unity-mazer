@@ -1,8 +1,8 @@
 namespace MazeSolver
 {
     // The recorded future of one maze: per-step solver metrics from a completed presolve,
-    // indexed 1..TerminalStep. Steps are bounded near n*n (each step visits a new cell or
-    // kills an agent), so arrays stay tens of KB even at 100x100.
+    // indexed 1..TerminalStep. The hard cap is 2*n*n+16 because each step visits a new
+    // cell or kills an agent, keeping the arrays below a few hundred KiB at 100x100.
     public sealed class SolveSheet
     {
         public int TerminalStep;

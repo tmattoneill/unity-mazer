@@ -188,7 +188,7 @@ namespace MazeSolver.Editor
             Require(score.Finished, "prepared ending did not finish");
             Require(score.Root % 12 == settings.Tonic % 12, "prepared cadence did not resolve to the tonic");
 
-            // No forecast means exactly the old behavior: composition runs until Complete.
+            // Without a forecast, composition continues until the live solver sends Complete.
             score.Reset(431, settings);
             for (int beat = 0; beat < 64; beat++)
             {

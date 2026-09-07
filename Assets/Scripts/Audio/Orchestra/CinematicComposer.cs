@@ -3,8 +3,8 @@ using System;
 namespace MazeSolver
 {
     // The original UnityMazer sound: repeating string patterns, orchestral layers, brass
-    // themes and beat-anchored percussion. Extracted verbatim from ProceduralScore; the
-    // RNG call order is part of the seeded-composition contract — do not reorder calls.
+    // themes and beat-anchored percussion. It retains ProceduralScore's seeded lineage;
+    // RNG call order is part of that contract, so do not reorder calls.
     public sealed class CinematicComposer : StyleComposerBase
     {
         readonly int[] minorProgressions, majorProgressions, motif;

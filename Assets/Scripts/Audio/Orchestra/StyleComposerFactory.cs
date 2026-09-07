@@ -1,7 +1,7 @@
 namespace MazeSolver
 {
     // Rules assets per style; any missing entry falls back to the Cinematic rules, so a
-    // project with only the original asset still runs every style.
+    // project with only the Cinematic asset still runs every style.
     public struct StyleRuleBundle
     {
         public OrchestralScoreRules Cinematic, Ambient, EDM, Classical;

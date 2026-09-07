@@ -21,6 +21,7 @@ namespace MazeSolver
         // Cached tree structure
         List<int> roots = new List<int>();
         Dictionary<int, List<int>> children = new Dictionary<int, List<int>>();
+        readonly Stack<List<int>> childListPool = new Stack<List<int>>();
         Dictionary<int, float> subtreeWeights = new Dictionary<int, float>();
         Dictionary<int, Vector2> nodePositions = new Dictionary<int, Vector2>();
 
@@ -31,7 +32,7 @@ namespace MazeSolver
                 Clear();
                 return;
             }
-            if (texture) Destroy(texture);
+            DestroyRuntimeTexture();
             texWidth = width;
             texHeight = height;
             texture = new Texture2D(texWidth, texHeight, TextureFormat.RGBA32, false);
@@ -64,6 +65,11 @@ namespace MazeSolver
 
             // Build tree structure
             roots.Clear();
+            foreach (var childList in children.Values)
+            {
+                childList.Clear();
+                childListPool.Push(childList);
+            }
             children.Clear();
             subtreeWeights.Clear();
             nodePositions.Clear();
@@ -79,7 +85,7 @@ namespace MazeSolver
                 else
                 {
                     if (!children.ContainsKey(agent.ParentId))
-                        children[agent.ParentId] = new List<int>();
+                        children[agent.ParentId] = childListPool.Count > 0 ? childListPool.Pop() : new List<int>();
                     children[agent.ParentId].Add(id);
                 }
             }
@@ -257,6 +263,21 @@ namespace MazeSolver
         {
             if (x < 0 || x >= texWidth || y < 0 || y >= texHeight) return;
             pixels[y * texWidth + x] = color;
+        }
+
+        void OnDestroy()
+        {
+            if (targetImage && targetImage.texture == texture) targetImage.texture = null;
+            DestroyRuntimeTexture();
+        }
+
+        void DestroyRuntimeTexture()
+        {
+            if (!texture) return;
+            if (Application.isPlaying) Destroy(texture);
+            else DestroyImmediate(texture);
+            texture = null;
+            pixels = null;
         }
     }
 }

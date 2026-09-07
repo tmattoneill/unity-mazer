@@ -157,7 +157,8 @@ namespace MazeSolver.Editor
             var audioTitle = CreateText("Audio", layoutGO.transform, 13, TextAnchor.MiddleCenter, new Color(0.7f, 0.7f, 0.8f));
             audioTitle.GetComponent<LayoutElement>().preferredHeight = 18;
 
-            // Drone mode toggle button
+            // Music-mode toggle. The serialized field keeps its old drone name so existing
+            // scenes retain their reference.
             var droneModeBtn = CreateButton("Orchestra (live)", layoutGO.transform, new Color(0.25f, 0.3f, 0.45f));
             uiController.droneModeButton = droneModeBtn;
             uiController.droneModeText = droneModeBtn.GetComponentInChildren<Text>();
@@ -207,7 +208,7 @@ namespace MazeSolver.Editor
                 AddTooltip(uiController.variationSlider.gameObject, tip);
             }
 
-            // Pitch slider
+            // Tempo slider. The serialized field keeps its old pitch name for scene compatibility.
             var pitchLbl = CreateText("Tempo: 112 BPM", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
             pitchLbl.GetComponent<LayoutElement>().preferredHeight = 14;
             uiController.pitchLabel = pitchLbl.GetComponent<Text>();
@@ -231,7 +232,7 @@ namespace MazeSolver.Editor
                 AddTooltip(volSld.gameObject, tip);
             }
 
-            // Wobble slider
+            // Energy slider. The serialized field keeps its old wobble name for scene compatibility.
             var wobLbl = CreateText("Energy: 60%", layoutGO.transform, 10, TextAnchor.MiddleLeft, new Color(0.7f, 0.7f, 0.8f));
             wobLbl.GetComponent<LayoutElement>().preferredHeight = 14;
             uiController.wobbleLabel = wobLbl.GetComponent<Text>();
@@ -271,7 +272,8 @@ namespace MazeSolver.Editor
                 AddTooltip(uiController.accentVolumeSlider.gameObject, tip);
             }
 
-            // Mute buttons
+            // Music and event-accent mute buttons. Their serialized fields retain the old
+            // drone/SFX names for scene compatibility.
             var muteDroneBtn = CreateButton("Mute Music", layoutGO.transform, new Color(0.3f, 0.3f, 0.35f));
             uiController.muteDroneButton = muteDroneBtn;
             uiController.muteDroneText = muteDroneBtn.GetComponentInChildren<Text>();

@@ -124,6 +124,7 @@ namespace MazeSolver
                         uiController.SetSolving(false);
                         isSolving = false;
                         audioEngine.CompleteSession(SessionOutcome.Solved);
+                        solveCoroutine = null;
                         break;
                     }
                 }
@@ -139,6 +140,7 @@ namespace MazeSolver
                 isSolving = false;
                 audioEngine.CompleteSession(SessionOutcome.Exhausted);
             }
+            solveCoroutine = null;
         }
 
         public void TogglePause()
@@ -161,6 +163,12 @@ namespace MazeSolver
             isSolving = false;
             isPaused = false;
             solver = null;
+            currentGrid = null;
+            solveSheet = null;
+            sheetDivergent = false;
+            currentN = 0;
+            currentGridSize = 0;
+            audioEngine.SetSolveSheet(null);
 
             mazeRenderer.Clear();
             audioEngine.StopSession();

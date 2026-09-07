@@ -31,14 +31,18 @@ namespace MazeSolver
         AudioSource orchestraSource, soundtrackSource;
         OrchestraOutput output;
         AudioClip silence;
+        string[] trackNames = Array.Empty<string>();
         bool sessionActive, paused;
         int births, deaths;
         public SolveConductor Conductor { get; } = new SolveConductor();
         readonly Queue<AudioCommand> pending = new Queue<AudioCommand>(32);
         const int MaxPending = 128;
+        public int PendingRecordingCount => retiredRecordings.Count + (activeRecording != null ? 1 : 0) + (latestRecording != null ? 1 : 0);
+        public static int ActiveRecordingWorkers => SessionRecording.ActiveWorkerCount;
 
         void Awake()
         {
+            CleanupStaleTemporaryRecordings();
             // Remove the legacy source: each callback must belong to a single dedicated source.
             var legacy = GetComponent<AudioSource>();
             if (legacy) { legacy.Stop(); legacy.enabled = false; }
@@ -77,6 +81,8 @@ namespace MazeSolver
             if (soundtrackClips == null || soundtrackClips.Length == 0)
                 soundtrackClips = Resources.LoadAll<AudioClip>("Soundtracks");
             Array.Sort(soundtrackClips, (a, b) => string.CompareOrdinal(a.name, b.name));
+            trackNames = new string[soundtrackClips.Length];
+            for (int i = 0; i < trackNames.Length; i++) trackNames[i] = soundtrackClips[i].name;
             AudioSettings.OnAudioConfigurationChanged += OnAudioConfigurationChanged;
         }
 
@@ -90,7 +96,7 @@ namespace MazeSolver
             if (Settings.Mode == MusicMode.Soundtrack && sessionActive && !paused && !soundtrackSource.isPlaying)
                 StartSoundtrack();
             if ((!sessionActive || Settings.Mode != MusicMode.Soundtrack) && soundtrackSource.volume <= 0.001f)
-                soundtrackSource.Stop();
+                StopSoundtrack(true);
             if (paused && soundtrackSource.volume <= 0.001f && soundtrackSource.isPlaying)
                 soundtrackSource.Pause();
         }
@@ -277,15 +283,31 @@ namespace MazeSolver
         void StartSoundtrack()
         {
             if (soundtrackClips.Length == 0) return;
-            soundtrackSource.clip = soundtrackClips[CurrentTrackIndex];
+            var next = soundtrackClips[CurrentTrackIndex];
+            if (soundtrackSource.clip != next)
+            {
+                StopSoundtrack(true);
+                soundtrackSource.clip = next;
+            }
+            if (next.loadState == AudioDataLoadState.Unloaded) next.LoadAudioData();
+            if (next.loadState == AudioDataLoadState.Loading) return;
+            if (next.loadState == AudioDataLoadState.Failed)
+            {
+                Debug.LogWarning("Could not stream soundtrack: " + next.name);
+                return;
+            }
             soundtrackSource.Play();
         }
-        public string[] GetTrackNames()
+        void StopSoundtrack(bool unload)
         {
-            var names = new string[soundtrackClips.Length];
-            for (int i = 0; i < names.Length; i++) names[i] = soundtrackClips[i].name;
-            return names;
+            if (!soundtrackSource) return;
+            var previous = soundtrackSource.clip;
+            soundtrackSource.Stop();
+            if (!unload || !previous) return;
+            soundtrackSource.clip = null;
+            previous.UnloadAudioData();
         }
+        public string[] GetTrackNames() => trackNames;
         public void CycleTrack()
         {
             if (soundtrackClips.Length == 0) return;
@@ -305,16 +327,34 @@ namespace MazeSolver
             output.Renderer = renderer;
             orchestraSource.Play();
         }
+#if UNITY_EDITOR || UNITY_INCLUDE_INSTRUMENTATION
+        public void RebuildAudioRendererForAudit() => OnAudioConfigurationChanged(false);
+#endif
         void OnDestroy()
         {
             AudioSettings.OnAudioConfigurationChanged -= OnAudioConfigurationChanged;
             if (orchestraSource) orchestraSource.Stop();
+            StopSoundtrack(true);
             CancelRecording();
             if (latestRecording != null) { retiredRecordings.Add(latestRecording); latestRecording = null; }
             foreach (var recording in retiredRecordings) recording.Cancel();
             foreach (var recording in retiredRecordings) recording.WaitForWriter(250);
             PollRecording();
             if (silence) Destroy(silence);
+        }
+
+        static void CleanupStaleTemporaryRecordings()
+        {
+            string directory = Path.Combine(Application.temporaryCachePath, "OrchestraTakes");
+            if (!Directory.Exists(directory)) return;
+            try
+            {
+                foreach (string path in Directory.GetFiles(directory, "*.wav")) File.Delete(path);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("Stale recording cleanup: " + exception.Message);
+            }
         }
     }
 }

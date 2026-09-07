@@ -31,6 +31,7 @@ namespace MazeSolver
         Vector2Int goal;
         List<AgentData> agentsById;
         readonly List<AgentData> stepAgents = new List<AgentData>();
+        readonly List<Vector2Int> neighborBuffer = new List<Vector2Int>(4);
         bool analysisMode;
         static readonly List<Vector2Int> EmptyPath = new List<Vector2Int>();
 
@@ -102,7 +103,8 @@ namespace MazeSolver
             {
                 if (IsSolved) break;
 
-                var neighbors = GetUnvisitedNeighbors(agent.Position);
+                GetUnvisitedNeighbors(agent.Position, neighborBuffer);
+                var neighbors = neighborBuffer;
 
                 if (neighbors.Count == 0)
                 {
@@ -185,9 +187,9 @@ namespace MazeSolver
             });
         }
 
-        List<Vector2Int> GetUnvisitedNeighbors(Vector2Int pos)
+        void GetUnvisitedNeighbors(Vector2Int pos, List<Vector2Int> result)
         {
-            var result = new List<Vector2Int>(4);
+            result.Clear();
             int r = pos.x, c = pos.y;
 
             for (int d = 0; d < 4; d++)
@@ -206,7 +208,6 @@ namespace MazeSolver
                 }
             }
 
-            return result;
         }
 
         static long Pack(int r, int c) => ((long)r << 32) | (uint)c;

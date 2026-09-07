@@ -3,8 +3,8 @@ using System;
 namespace MazeSolver
 {
     // Maps the live active-path count onto a bounded number of ensemble layers.
-    // Observe() runs per snapshot (solver-step cadence, may drop under load — the last
-    // value holds); Tick() runs once per beat so smoothing is tempo-relative and layer
+    // Observe() runs per snapshot. Solver-step updates may drop under load, in which case
+    // the last value holds. Tick() runs once per beat, so smoothing is tempo-relative and layer
     // changes land only on bar or phrase boundaries. Enter thresholds sit strictly above
     // exit thresholds, so populations flickering near a boundary cannot flap a layer.
     public sealed class EnsembleTracker
@@ -45,7 +45,7 @@ namespace MazeSolver
             while (target < enterAt.Length && smoothed >= enterAt[target]) target++;
             while (target > 1 && smoothed < exitBelow[target - 1]) target--;
 
-            // Density is the ceiling on ensemble size, per the roadmap.
+            // Density sets the ceiling on ensemble size.
             int ceiling = 1 + (int)Math.Round(density * (enterAt.Length - 1));
             if (target > ceiling) target = ceiling;
             if (target < 1) target = 1;

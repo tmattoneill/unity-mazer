@@ -230,20 +230,27 @@ namespace MazeSolver.Editor
         [MenuItem("Tools/Orchestra/Build macOS")]
         public static void BuildMac() => Build(BuildTarget.StandaloneOSX, "Builds/UnityMazer.app");
 
+        [MenuItem("Tools/Orchestra/Build macOS memory audit")]
+        public static void BuildMacMemoryAudit()
+        {
+            MemorySafetyValidation.Run();
+            Build(BuildTarget.StandaloneOSX, "Builds/MemoryAudit/UnityMazer.app", BuildOptions.Development);
+        }
+
         [MenuItem("Tools/Orchestra/Build Windows")]
         public static void BuildWindows() => Build(BuildTarget.StandaloneWindows64, "Builds/Windows/UnityMazer.exe");
 
         [MenuItem("Tools/Orchestra/Build Linux")]
         public static void BuildLinux() => Build(BuildTarget.StandaloneLinux64, "Builds/Linux/UnityMazer");
 
-        static void Build(BuildTarget target, string locationPathName)
+        static void Build(BuildTarget target, string locationPathName, BuildOptions options = BuildOptions.None)
         {
             PlayerSettings.productName = "UnityMazer";
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 scenes = new[] { "Assets/Scenes/MazeSolver.unity" },
                 locationPathName = locationPathName, target = target,
-                options = BuildOptions.None
+                options = options
             });
             if (report.summary.result != BuildResult.Succeeded) throw new Exception(target + " build failed: " + report.summary.result);
             if (target == BuildTarget.StandaloneOSX && Application.platform == RuntimePlatform.OSXEditor)

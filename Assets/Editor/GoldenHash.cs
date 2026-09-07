@@ -5,7 +5,7 @@ using UnityEngine;
 namespace MazeSolver.Editor
 {
     // Renders a fixed, scripted Cinematic session and logs a hash of the audio stream.
-    // Run before and after composer refactors; the hash must not change.
+    // Record the hash before a composer refactor and compare it with the result afterwards.
     public static class GoldenHash
     {
         [MenuItem("Tools/Orchestra/Golden hash")]

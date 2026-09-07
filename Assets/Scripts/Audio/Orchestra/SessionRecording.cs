@@ -11,6 +11,7 @@ namespace MazeSolver
         readonly float[] ring;
         readonly int sampleRate;
         readonly Thread worker;
+        static int activeWorkerCount;
         long read, write;
         int state, inputComplete, cancelled, overflow, forcedTail;
         int tailFrames, silentFrames;
@@ -19,6 +20,7 @@ namespace MazeSolver
         public RecordingState State => (RecordingState)Volatile.Read(ref state);
         public string Error => Volatile.Read(ref error);
         public bool WorkerFinished => !worker.IsAlive;
+        public static int ActiveWorkerCount => Volatile.Read(ref activeWorkerCount);
 
         public SessionRecording(string directory, int rate, int seed, MusicSettings settings, int bufferSeconds = 4)
         {
@@ -28,7 +30,13 @@ namespace MazeSolver
             TemporaryPath = Path.Combine(directory, Guid.NewGuid().ToString("N") + ".wav");
             FileStem = "Orchestra-" + settings.Style + "-" + DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") + "-" + MusicalKey.Name(settings).Replace(' ', '-') + "-seed-" + seed;
             worker = new Thread(WriteRecording) { IsBackground = true, Name = "Orchestra WAV writer" };
-            worker.Start();
+            Interlocked.Increment(ref activeWorkerCount);
+            try { worker.Start(); }
+            catch
+            {
+                Interlocked.Decrement(ref activeWorkerCount);
+                throw;
+            }
         }
 
         // Only the audio thread produces PCM; cancellation is an independent main-thread signal.
@@ -118,6 +126,10 @@ namespace MazeSolver
                 try { if (File.Exists(TemporaryPath)) File.Delete(TemporaryPath); }
                 catch (Exception cleanupError) { Volatile.Write(ref error, exception.Message + " Temporary file cleanup: " + cleanupError.Message); }
                 Volatile.Write(ref state, (int)RecordingState.Failed);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref activeWorkerCount);
             }
         }
     }

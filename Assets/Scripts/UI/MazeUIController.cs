@@ -1,3 +1,4 @@
+using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8,7 +9,8 @@ namespace MazeSolver
         public Slider mazeSizeSlider, targetPathsSlider, speedSlider;
         public Button generateButton, pauseButton, resetButton, quitButton;
         public Text mazeSizeLabel, targetPathsLabel, speedLabel, statusText, agentCountText, pauseButtonText;
-        // Keep serialized references to the existing controls when upgrading a saved scene.
+        // These legacy serialized names preserve saved-scene references: drone means music,
+        // pitch means tempo, wobble means energy, and SFX means solver-event accents.
         public Button droneModeButton, muteDroneButton, muteSfxButton, trackButton;
         public Text droneModeText, muteDroneText, muteSfxText, trackButtonText;
         public Slider pitchSlider, volumeSlider, wobbleSlider, densitySlider, hallSlider, accentVolumeSlider;
@@ -27,6 +29,9 @@ namespace MazeSolver
         float lastSpeedMs = -1;
         MazeGameManager gameManager;
         MusicSettings music = MusicSettings.Default;
+        readonly StringBuilder vitalsBuilder = new StringBuilder(2048);
+        Slider[] orchestraControls;
+        const string HexDigits = "0123456789ABCDEF";
         // A saved scene without the panel reference behaves as before: panel shown.
         public bool SolvePanelVisible => !solvePanel || solvePanel.activeSelf;
         // Pixels the solve panel occupies on the right; the camera fit keeps the maze clear of it.
@@ -48,6 +53,7 @@ namespace MazeSolver
             Configure(hallSlider, 0, 100, 28);
             Configure(accentVolumeSlider, 0, 100, 60);
             Configure(variationSlider, 0, 100, 35);
+            orchestraControls = new[] { pitchSlider, wobbleSlider, densitySlider, hallSlider, accentVolumeSlider, variationSlider };
             if (styleDropdown)
             {
                 styleDropdown.ClearOptions();
@@ -147,7 +153,7 @@ namespace MazeSolver
                 var names = gameManager.AudioEngine.GetTrackNames();
                 trackButtonText.text = names.Length > 0 ? names[gameManager.AudioEngine.CurrentTrackIndex] : "No tracks";
             }
-            foreach (var control in new Slider[] { pitchSlider, wobbleSlider, densitySlider, hallSlider, accentVolumeSlider, variationSlider })
+            foreach (var control in orchestraControls)
                 if (control) control.interactable = !recorded;
             if (tonicDropdown) tonicDropdown.interactable = !recorded;
             if (tonalityDropdown) tonalityDropdown.interactable = !recorded;
@@ -227,17 +233,18 @@ namespace MazeSolver
             // Summary line
             if (vitalsSummaryText)
             {
-                vitalsSummaryText.text =
-                    $"<color=#cccccc>{solver.TotalSpawned}</color> TOTAL   " +
-                    $"<color=#44ff44>{solver.ActiveCount}</color> ACTIVE   " +
-                    $"<color=#ffaa00>{solver.DeadCount}</color> DEAD   " +
-                    $"<color=#00ffeb>{solver.SolvedCount}</color> SOLVED";
+                vitalsBuilder.Clear();
+                vitalsBuilder.Append("<color=#cccccc>").Append(solver.TotalSpawned).Append("</color> TOTAL   ")
+                    .Append("<color=#44ff44>").Append(solver.ActiveCount).Append("</color> ACTIVE   ")
+                    .Append("<color=#ffaa00>").Append(solver.DeadCount).Append("</color> DEAD   ")
+                    .Append("<color=#00ffeb>").Append(solver.SolvedCount).Append("</color> SOLVED");
+                vitalsSummaryText.text = vitalsBuilder.ToString();
             }
 
             // Agent list (most recent first, cap at ~25 visible)
             if (agentListText)
             {
-                var sb = new System.Text.StringBuilder();
+                vitalsBuilder.Clear();
                 int shown = 0;
                 // Iterate from highest ID down
                 for (int id = solver.TotalSpawned - 1; id >= 0 && shown < 25; id--)
@@ -248,33 +255,31 @@ namespace MazeSolver
 
                     // Color dot based on agent color (use hex)
                     var col = AgentColorUtil.GetHeadColor(agent.Id);
-                    string hex = ColorUtility.ToHtmlStringRGB(col);
-
-                    // Status with color
-                    string status;
-                    switch (agent.Status)
-                    {
-                        case AgentStatus.Active:
-                            status = "<color=#44ff44>active</color> ";
-                            break;
-                        case AgentStatus.Solved:
-                            status = "<color=#00ffeb>solved</color>";
-                            break;
-                        default:
-                            status = "<color=#666666>dead</color>   ";
-                            break;
-                    }
-
                     int pathLen = agent.OwnPath.Count;
                     int lifeSteps = (agent.DeathStep >= 0 ? agent.DeathStep : solver.CurrentStep) - agent.SpawnStep;
                     // Observed step timing beats the requested delay, which is only a floor.
                     float observed = gameManager.AudioEngine.Conductor.ObservedStepSeconds;
                     int lifeMs = Mathf.RoundToInt(lifeSteps * (observed > 0 ? observed * 1000f : speedMs));
 
-                    sb.AppendLine($"<color=#{hex}>\u25cf</color> #{agent.Id,-6} {status}  {pathLen,4}   {lifeMs}ms");
+                    vitalsBuilder.Append("<color=#");
+                    AppendHex(vitalsBuilder, col.r); AppendHex(vitalsBuilder, col.g); AppendHex(vitalsBuilder, col.b);
+                    vitalsBuilder.Append(">\u25cf</color> #").Append(agent.Id).Append("  ");
+                    switch (agent.Status)
+                    {
+                        case AgentStatus.Active: vitalsBuilder.Append("<color=#44ff44>active</color> "); break;
+                        case AgentStatus.Solved: vitalsBuilder.Append("<color=#00ffeb>solved</color>"); break;
+                        default: vitalsBuilder.Append("<color=#666666>dead</color>   "); break;
+                    }
+                    vitalsBuilder.Append("  ").Append(pathLen).Append("   ").Append(lifeMs).AppendLine("ms");
                 }
-                agentListText.text = sb.ToString();
+                agentListText.text = vitalsBuilder.ToString();
             }
+        }
+
+        static void AppendHex(StringBuilder builder, byte value)
+        {
+            builder.Append(HexDigits[value >> 4]);
+            builder.Append(HexDigits[value & 15]);
         }
     }
 }

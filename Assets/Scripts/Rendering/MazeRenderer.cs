@@ -7,6 +7,7 @@ namespace MazeSolver
     public class MazeRenderer : MonoBehaviour
     {
         Texture2D texture;
+        Sprite runtimeSprite;
         Color32[] pixels;
         SpriteRenderer spriteRenderer;
         int gridSize;
@@ -19,6 +20,7 @@ namespace MazeSolver
 
         public void Initialize(int gridSize, byte[,] grid)
         {
+            ReleaseRuntimeAssets();
             this.gridSize = gridSize;
             spriteRenderer = GetComponent<SpriteRenderer>();
 
@@ -42,10 +44,10 @@ namespace MazeSolver
             texture.SetPixels32(pixels);
             texture.Apply();
 
-            var sprite = Sprite.Create(texture,
+            runtimeSprite = Sprite.Create(texture,
                 new Rect(0, 0, gridSize, gridSize),
                 new Vector2(0.5f, 0.5f), 1f);
-            spriteRenderer.sprite = sprite;
+            spriteRenderer.sprite = runtimeSprite;
         }
 
         public void RenderFrame(MazeSolverEngine solver, byte[,] grid, int mazeN)
@@ -208,6 +210,26 @@ namespace MazeSolver
                 pixels[i] = new Color32(10, 10, 18, 255);
             texture.SetPixels32(pixels);
             texture.Apply();
+        }
+
+        void OnDestroy() => ReleaseRuntimeAssets();
+
+        void ReleaseRuntimeAssets()
+        {
+            if (spriteRenderer && spriteRenderer.sprite == runtimeSprite)
+                spriteRenderer.sprite = null;
+            DestroyRuntimeObject(runtimeSprite);
+            DestroyRuntimeObject(texture);
+            runtimeSprite = null;
+            texture = null;
+            pixels = null;
+        }
+
+        static void DestroyRuntimeObject(Object value)
+        {
+            if (!value) return;
+            if (Application.isPlaying) Destroy(value);
+            else DestroyImmediate(value);
         }
     }
 }

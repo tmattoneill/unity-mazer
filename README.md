@@ -2,7 +2,15 @@
 
 A Unity 6 maze explorer with a live procedural orchestral score. Generate a maze and watch agents split at junctions, leave coloured trails and find the exit.
 
-Planned music work is tracked in [TODO.md](TODO.md): styles, ensemble size driven by live paths, and presolving to pace the composition and its ending.
+The music roadmap is implemented on `main`: four styles, ensemble layers driven by live paths, a deterministic presolve, and an ending forecast that brings the score home with the solver. [TODO.md](TODO.md) now tracks listening, mix, platform and release work.
+
+## Current state
+
+The project still reports version `0.1.0`, but `main` has moved on from the public `v0.1.0` tag. That release points to `a0c6f2b`: it includes the first live Cinematic orchestra and the platform build entry points, but it predates Ambient, EDM and Classical, the presolve and ending forecast, the collapsible solve panel, and hover help. Do not use the published `v0.1.0` zip to assess the current code.
+
+The ignored local macOS build was rebuilt after the current feature work on 6 September 2026. It is a universal Apple Silicon and Intel app, targets macOS 12.0 or later, uses bundle ID `net.the-oneills.unitymazer`, and passes `codesign --verify --deep --strict` with an ad-hoc signature. The app has not yet completed the cross-machine macOS checklist below. Windows and Linux build methods exist, but this Unity installation has only `MacStandaloneSupport`; those builds remain blocked on their Unity Hub modules.
+
+The editor validators cover solver and presolve trace equality, a 50 ms ceiling for a 100x100 presolve, ensemble hysteresis and density limits, forecast handling, all four composers, seeded output, recording, fixed audio-thread storage, clean endings and stops, and renderer timing. Manual listening and mix tuning remain. The repository contains 235 recorded orchestral samples from VSCO 2 Community Edition, seven generated EDM instruments and nine recorded soundtrack files.
 
 ## Run
 
@@ -28,7 +36,14 @@ Audio controls set music and accent volume, energy, density, variation, tempo an
 
 A new run retains the previous completed take until its replacement finishes. Reset, restart, switching to recorded soundtracks or changing audio devices discards an unfinished take. Save a take before quitting: temporary captures are removed on normal shutdown. Soundtrack recordings are excluded. Disk errors or recording-buffer overflow discard the affected capture and leave playback running.
 
- Tempo changes take effect at the next bar. The solver speed does not set the musical tempo. A solved maze receives a short cadence while the result remains visible.
+Tempo changes take effect at the next bar. The solver speed does not set the musical tempo. A solved maze receives a short cadence while the result remains visible.
+
+## Implementation map
+
+- `Assets/Scripts/Maze` contains Growing Tree generation, the deterministic forking solver, the headless presolve and the solve sheet.
+- `Assets/Scripts/Audio` contains the main-thread conductor and audio bridge. `Audio/Orchestra` contains the four composers, ensemble tracking, sample renderer, hall, limiter and background WAV recorder.
+- `Assets/Scripts/Rendering` draws the maze and solve tree into `Texture2D` surfaces. `Assets/Scripts/UI` owns the runtime controls and shared hover help.
+- `Assets/Editor` rebuilds the scene, prepares assets, runs validation, assigns the icon and builds players. `Assets/Scenes/MazeSolver.unity` is the only enabled scene.
 
 ## Build and validate
 
@@ -44,11 +59,24 @@ UNITY='/Applications/Unity/Hub/Editor/6000.6.0f1/Unity.app/Contents/MacOS/Unity'
   -logFile /tmp/unity-orchestra-build.log
 ```
 
-The first command creates the score and bank assets if missing, rebuilds the maze scene from its editor tool, runs audio checks, and renders `Builds/Audio/Orchestra-demo.wav`. It rewrites the saved scene, so preserve any manual scene edits first. The second writes `Builds/UnityMazer.app`.
+The first command creates the score and bank assets if missing, rebuilds the maze scene from its editor tool, runs the presolve, feature, style and renderer checks, and renders four 80-second comparison files under `Builds/Audio`: the default seed 431, seed 432, Bb minor at 80% variation, and C major at zero variation. It rewrites the saved scene, so preserve any manual scene edits first. These are editor checks, not Unity Test Framework tests. The second command writes `Builds/UnityMazer.app`.
+
+### Memory audit
+
+The project includes a Development-build memory runner and a macOS LaunchServices wrapper. It checks repeated maze replacement, recording cancellation, soundtrack cycling and audio renderer rebuilds. It records Unity memory counters, native object counts, RSS and `vmmap` summaries. See [MEMORY_AUDIT.md](MEMORY_AUDIT.md) for the current findings, baseline and pass limits.
+
+```sh
+"$UNITY" -batchmode -nographics -quit -projectPath "$PWD" \
+  -executeMethod MazeSolver.Editor.BuildOrchestra.BuildMacMemoryAudit \
+  -logFile /tmp/unity-memory-audit-build.log
+scripts/run_memory_audit_macos.sh
+```
+
+The wrapper launches the `.app` through `open`. Do not start `Contents/MacOS/UnityMazer` directly when testing a windowed macOS player.
 
 ### Windows and Linux
 
-`BuildOrchestra.BuildWindows` writes `Builds/Windows/UnityMazer.exe` and `BuildOrchestra.BuildLinux` writes `Builds/Linux/UnityMazer`. Substitute either method name in the build command above. Both need their Unity build-support module installed through Unity Hub (Windows Build Support (Mono) and Linux Build Support (Mono)); the editor's default install includes only macOS and WebGL.
+`BuildOrchestra.BuildWindows` writes `Builds/Windows/UnityMazer.exe` and `BuildOrchestra.BuildLinux` writes `Builds/Linux/UnityMazer`. Substitute either method name in the build command above. Both need their Unity build-support module installed through Unity Hub: Windows Build Support (Mono) and Linux Build Support (Mono). The current Unity 6000.6.0f1 installation contains only macOS standalone support.
 
 ### App icon
 
@@ -56,11 +84,22 @@ The first command creates the score and bank assets if missing, rebuilds the maz
 
 ### Distribution
 
-`Builds/` is gitignored. Finished builds are attached as zip assets to GitHub Releases, tagged by version. The macOS app is ad-hoc signed, without notarization, so Gatekeeper blocks a plain double-click on other machines. Right-click the app, choose Open, and confirm; or clear the quarantine flag with `xattr -dr com.apple.quarantine UnityMazer.app`.
+`Builds/` is gitignored. The current public release is [UnityMazer 0.1.0](https://github.com/tmattoneill/unity-mazer/releases/tag/v0.1.0), with one 209.5 MiB macOS zip. It predates the current four-style and UI work. Publish a new version only after the listening and compatibility passes.
+
+The macOS app is ad-hoc signed, without notarization, so Gatekeeper blocks a plain double-click on other machines. Right-click the app, choose Open, and confirm; or clear the quarantine flag with `xattr -dr com.apple.quarantine UnityMazer.app`.
 
 ### macOS compatibility checklist
 
-When testing on another macOS version or machine: the app launches past Gatekeeper with the right-click Open route; Generate & Solve runs and agents animate; Orchestra mode plays without glitches; Save WAV writes to `~/Library/Application Support/Matt O'Neill/UnityMazer/Recordings`; the window resizes and the left panel scrolls; quit is clean with no crash log in Console.
+Record the macOS version, CPU and audio device for each pass, then check:
+
+- [ ] The app opens through Gatekeeper with the right-click Open route.
+- [ ] Generate & Solve runs from 5x5 through 100x100, agents animate, and pause, resume and reset work.
+- [ ] Cinematic, Ambient, EDM and Classical play without gaps, clipping or stuck voices.
+- [ ] Live path growth and collapse audibly change the ensemble, and each ending resolves close to the visual solve.
+- [ ] Soundtrack mode plays and cycles through the nine recorded tracks.
+- [ ] Save WAV writes a stereo 24-bit file to `~/Library/Application Support/Matt O'Neill/UnityMazer/Recordings` and Show Recordings Folder opens it.
+- [ ] The window resizes, the left panel scrolls, the solve panel hides and returns, and hover help remains on-screen.
+- [ ] Quit is clean and Console records no UnityMazer crash.
 
 Checks cover all 24 keys, distinct seeded compositions, phrase-boundary variation, returning themes, WAV sample accuracy, pause and tail capture, cancellation and writer errors, repeatable output from a seed, bounded accents, note ranges, callback allocations, pause/resume, cadence completion, stopped voices, finite output, peak level and audio processing time. They also verify the presolve trace matches the live solver step for step across sizes and path targets, the presolve time budget, ensemble layer hysteresis (no flicker, boundary-only changes, the Density ceiling, collapse recovery), the conductor's remaining-time forecast including pause and speed changes and divergence fallback, and each style's content rules (Ambient texture, EDM kick and breakdown pattern, Classical scoring, resolving endings) plus renderer determinism, allocation-free rendering and clean stops for all four styles. Comparison WAVs include seeds 431 and 432, Bb minor at 80% variation, and C major at zero variation. The demos follow a fixed activity trace through contrasting sections and an ending. It supports listening and tuning separately from maze generation.
 

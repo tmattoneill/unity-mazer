@@ -42,8 +42,8 @@ namespace MazeSolver
     {
         public int Active, Births, Deaths;
         public float Coverage;
-        // Forecast from the solve sheet; values <= 0 mean unknown or unreliable, and the
-        // composer must then behave exactly as it did before forecasting existed.
+        // Forecast from the solve sheet; values <= 0 mean unknown or unreliable, so the
+        // composer continues until it receives Complete from the live solver.
         public float ForecastBeatsRemaining;
         public float Progress;
     }
